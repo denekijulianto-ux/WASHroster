@@ -5,7 +5,8 @@ const URL = process.env.APP_URL || "http://localhost:5179/";
 const OUT = process.argv[2] || "/tmp";
 (async () => {
   const b = await chromium.launch();
-  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const W = +process.env.W || 390, desk = W > 800;
+  const ctx = await b.newContext(desk ? { viewport: { width: W, height: 900 }, deviceScaleFactor: 1 } : { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const p = await ctx.newPage(); p.setDefaultTimeout(8000);
   const shot = async (n) => { await p.waitForTimeout(350); await p.screenshot({ path: `${OUT}/${n}.png` }); console.log("shot", n); };
   const top = async (sel, dy = 70) => { await p.evaluate(([s, d]) => { const el = document.querySelector(s); if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - d); }, [sel, dy]); };
