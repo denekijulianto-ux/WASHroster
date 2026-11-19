@@ -26,6 +26,17 @@ const OUT = process.env.SHOTS || "/tmp";
     sent.push(b);
     r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, recipients: 3, email_sent: 3, email_error: null, wa_sent: 0, wa_error: null, channels: { email: true, wa: false } }) });
   });
+  const srcCalls = [];
+  await p.route("**/functions/v1/sheet-sync", async r => {
+    const b = JSON.parse(r.request().postData() || "{}"); srcCalls.push(b);
+    if (b.mode === "test") {
+      if (!/docs\.google\.com\/spreadsheets/.test(b.url || "")) return r.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: "Link bukan link Google Spreadsheet." }) });
+      return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, headers: ["Timestamp", "Email Address", "Nama lengkap"], rows: 1, preview: [{ name: "Rina Sheet", email: "rina@contoh.id", phone: "0812", role: "Kualitas Air", province: "Bali", mis: "MIS-1" }] }) });
+    }
+    await p.evaluate(() => { const db = window.__mockdb; if (!db.members.find(m => m.email === "rina@contoh.id")) db.members.push({ id: crypto.randomUUID(), user_id: null, email: "rina@contoh.id", name: "Rina Sheet", phone: "0812", role: "Kualitas Air", level: "Relawan (KSR/TSR)", province: "Bali", chapter: "", skills: "", lang: "", mis: "MIS-1", status: "tersedia", photo: "", source: "form", sheet_sig: null, has_password: false, created_at: new Date().toISOString() });
+      const s = db.settings.find(x => x.key === "sheet_source"); if (s) s.value = Object.assign({}, s.value, { last_at: new Date().toISOString(), last_result: { new: 1, updated: 0, filled: 0, unchanged: 0, errors: 0 } }); });
+    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, new: 1, updated: 0, filled: 0, unchanged: 0, errors: 0, rows: 1 }) });
+  });
   const login = async (email, pw) => { await p.fill("#lmail", email); await p.fill("#lpw", pw); await p.click("#pwform button[type=submit]"); };
   const logout = async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#pwform"); };
 
@@ -69,6 +80,18 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.waitForSelector("text=2 anggota dipilih");
     await p.click("[data-act=rsel-del]"); await p.click("[data-act=rsel-del]"); await p.waitForTimeout(800);
     if (await p.locator("text=Hapus Satu").count()) throw new Error("still listed");
+  });
+  await step("admin connects the form-responses spreadsheet; members appear", async () => {
+    await p.click(".tab:has-text('Beranda')"); await p.click("#tbar [data-act=sheet]"); await p.waitForSelector("#srcurl");
+    await p.fill("#srcurl", "https://contoh.com/x"); await p.click("[data-act=src-test]"); await p.waitForSelector("#srcerr >> text=Link harus link Google Spreadsheet");
+    await p.fill("#srcurl", "https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/edit#gid=0"); await p.click("[data-act=src-test]");
+    await p.waitForSelector("text=Terbaca: 1 jawaban"); await p.waitForSelector("#modal >> text=Rina Sheet"); await shot("02b-source");
+    await p.click("[data-act=src-save]"); await p.waitForSelector("text=Sinkron selesai: 1 baru", { timeout: 4000 });
+    await p.waitForSelector("text=Spreadsheet jawaban Form");
+    if (srcCalls[srcCalls.length - 1].mode !== "run") throw new Error("run not called");
+    const saved = await p.evaluate(() => window.__mockdb.settings.find(x => x.key === "sheet_source"));
+    if (!saved || !/docs\.google\.com/.test(saved.value.url)) throw new Error("source not saved");
+    await p.click(".tab:has-text('Anggota Roster')"); await p.waitForSelector("text=Rina Sheet");
   });
   await step("admin logs out", logout);
 
@@ -116,10 +139,10 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.waitForSelector("text=Diumumkan");
   });
   await step("admin sees password status and can reset login", async () => {
-    await p.click(".tab:has-text('Anggota Roster')"); await p.click("tr[data-act=selm]"); await p.waitForSelector("text=Sudah memakai password.");
+    await p.click(".tab:has-text('Anggota Roster')"); await p.click("tr[data-act=selm]:has-text('Wulan')"); await p.waitForSelector("text=Sudah memakai password.");
   });
   await step("admin generates the Google Form script", async () => {
-    await p.click("#tbar [data-act=gform]"); await p.click("[data-act=gform-gen]"); await p.waitForSelector("#gscode");
+    await p.click("#tbar [data-act=sheet]"); await p.click("#modal [data-act=gform]"); await p.click("[data-act=gform-gen]"); await p.waitForSelector("#gscode");
     if (!/TOKEN = "rw_[0-9a-f]{48}"/.test(await p.inputValue("#gscode"))) throw new Error("script missing token");
     await p.click("#modal [data-act=close]");
   });
@@ -141,6 +164,26 @@ const OUT = process.env.SHOTS || "/tmp";
   await step("wulan (now admin) switches to Mode Admin and reads the report", async () => {
     await p.click("[data-act=mode][data-v=admin]"); await p.waitForSelector("text=Mode admin", { timeout: 4000 });
     await p.click(".tab:has-text('Laporan')"); await p.waitForTimeout(300); await p.click("tr[data-act=selr]"); await p.waitForSelector("text=Promosi kebersihan di 3 posko");
+  });
+  await step("non-disaster alert: most relevant candidates on top", async () => {
+    await p.evaluate(() => [["Biasa Saja", "Kualitas Air", "", "Bali", "Relawan (KSR/TSR)"], ["Fasil Ahli", "Promosi Kebersihan", "TOT PHAST, fasilitator pelatihan", "Jawa Tengah", "Team Leader"], ["Respon Cepat", "Promosi Kebersihan", "MTDB, Satgana, asesmen WASH", "Aceh", "Relawan (KSR/TSR)"]].forEach(([n, r, sk, pr, lv]) =>
+      window.__mockdb.members.push({ id: crypto.randomUUID(), user_id: null, email: n.replace(/ /g, "").toLowerCase() + "@contoh.id", name: n, phone: "0813000", role: r, level: lv, province: pr, chapter: "", skills: sk, lang: "", mis: "", status: "tersedia", photo: "", source: "form", sheet_sig: null, has_password: false, created_at: new Date().toISOString() })));
+    await p.click(".tab:has-text('Beranda')"); await p.click("#tbar [data-act=new-alert]");
+    await p.selectOption("#akind", "non_bencana"); await p.waitForSelector("#aemergl >> text=Jenis kegiatan");
+    await p.selectOption("#aemerg", "Pelatihan"); await p.fill("#atitle", "Pelatihan PHAST Jateng"); await p.selectOption("#arole", "Promosi Kebersihan");
+    await p.fill("#aloc", "Semarang, Jawa Tengah"); await p.fill("#astart", t); await p.fill("#adead", t);
+    await p.click("[data-act=save-alert]"); await p.waitForTimeout(800); if (await p.locator("#modal [data-act=close]").count()) await p.click("#modal [data-act=close]");
+    const al = await p.evaluate(() => window.__mockdb.alerts.find(a => a.title === "Pelatihan PHAST Jateng"));
+    if (!al || al.kind !== "non_bencana") throw new Error("kind not saved: " + JSON.stringify(al && al.kind));
+    await p.goto(URL + "#seleksi-" + al.id); await p.waitForSelector("#pick label");
+    await p.waitForSelector(".pill:has-text('Non bencana')");
+    const names = await p.$$eval("#pick label b", xs => xs.map(x => x.textContent));
+    if (names[0] !== "Fasil Ahli") throw new Error("order: " + names.join(", "));
+    if (names.indexOf("Respon Cepat") > names.indexOf("Biasa Saja")) throw new Error("order2: " + names.join(", "));
+    await p.click("[data-act=inv-top]"); await p.waitForSelector("#selcount:not(:has-text('0 dipilih'))");
+    await p.click("[data-act=invite]"); await p.waitForTimeout(800);
+    const first = await p.$eval(".dt tbody tr b", x => x.textContent); if (first !== "Fasil Ahli") throw new Error("candidate table first: " + first);
+    await shot("09-relevance");
   });
   await p.setViewportSize({ width: 390, height: 844 }); await logout(); await shot("08-phone-login");
   console.log(errs.length ? "\nERRORS:\n" + errs.join("\n") : "\nno errors");

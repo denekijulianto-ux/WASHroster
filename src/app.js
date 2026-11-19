@@ -11,6 +11,10 @@ const SB_URL = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SB_URL, SB_KEY = imp
 const sb = SB_URL && SB_KEY ? createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
 const ROLES=["Koordinator WASH","Suplai Air Bersih","Sanitasi & Limbah","Promosi Kebersihan","Kualitas Air","Pengendalian Vektor","Operator Unit Pengolahan Air"];
 const LEVELS=["Relawan (KSR/TSR)","Staf PMI","Team Leader"];
+const KINDS={bencana:"Bencana",non_bencana:"Non bencana"};
+const NONB=["Pelatihan","Workshop","Simulasi","Asesmen/Survei","Fasilitasi kegiatan","Lainnya"];
+const kindOf=a=>a&&a.kind==="non_bencana"?"non_bencana":"bencana";
+const subLabel=a=>kindOf(a)==="non_bencana"?"Jenis kegiatan":"Jenis bencana";
 const EMERG=["Banjir","Gempa Bumi","Tsunami","Erupsi Gunung Api","Tanah Longsor","Kekeringan","Kebakaran","Wabah Penyakit","Pengungsian"];
 const PROV=["Aceh","Sumatera Utara","Sumatera Barat","Riau","Kepulauan Riau","Jambi","Bengkulu","Sumatera Selatan","Kepulauan Bangka Belitung","Lampung","Banten","DKI Jakarta","Jawa Barat","Jawa Tengah","DI Yogyakarta","Jawa Timur","Bali","Nusa Tenggara Barat","Nusa Tenggara Timur","Kalimantan Barat","Kalimantan Tengah","Kalimantan Selatan","Kalimantan Timur","Kalimantan Utara","Sulawesi Utara","Gorontalo","Sulawesi Tengah","Sulawesi Barat","Sulawesi Selatan","Sulawesi Tenggara","Maluku","Maluku Utara","Papua","Papua Barat","Papua Barat Daya","Papua Tengah","Papua Pegunungan","Papua Selatan"];
 const MSTAT={tersedia:["Tersedia","ok"],ditugaskan:["Bertugas","red"],tidak:["Tidak tersedia","off"]};
@@ -40,7 +44,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const newId=()=>crypto.randomUUID();
 const S={mode:"pending",db:null,members:{},alerts:{},loaded:false,loadErr:false,route:"beranda",
-  f:{q:"",role:"",status:"",prov:""},af:"aktif",inv:{q:"",roleOnly:true,availOnly:true,sel:new Set()},downloads:{save:async({filename,data})=>{const blob=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}},
+  f:{q:"",role:"",status:"",prov:""},af:"aktif",inv:{q:"",roleOnly:false,availOnly:true,sel:new Set()},downloads:{save:async({filename,data})=>{const blob=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}},
   uid:null,isAdmin:false,isAdminAcct:false,admins:[],session:null,meProfile:null,suspend:false,imp:null,view:"",
   settings:{},viewAs:(()=>{try{return localStorage.getItem("rosterwash.mode")||"admin"}catch(e){return"admin"}})(),selRep:null,rf:"semua",sync:null,syncLocal:null,syncing:false,syncErr:"",mcp:null,sheetDraft:null,selMember:null,selAlert:null,selCard:null,kg:"semua",fe:"",sample:null,chat:[],chatBusy:false};
 S.f.src="";S.af="terbuka";
@@ -143,7 +147,7 @@ function toolbar(){
   const hasSample=members().some(m=>m.sample)||alerts().some(a=>a.sample);
   const xl=S.downloads&&window.XLSX;
   $("#tbar").innerHTML=`<button class="hbtn" data-act="new-member">${I.plus}Tambah anggota</button><button class="hbtn" data-act="new-alert">${I.bell}Buat alert</button><span class="sep"></span>
-   <button class="hbtn" data-act="gform">${I.sheet}Google Form</button><button class="hbtn" data-act="import">${I.up}Impor Excel / CSV</button>${xl?`<button class="hbtn" data-act="export">${I.dl}Ekspor .xlsx</button><button class="hbtn" data-act="template">${I.sheet}Template</button>`:""}${hasSample?`<span class="sep"></span><button class="hbtn" data-act="unseed">${I.x}Hapus data contoh</button>`:""}`;
+   <button class="hbtn" data-act="sheet">${I.sheet}Sumber data</button><button class="hbtn" data-act="import">${I.up}Impor Excel / CSV</button>${xl?`<button class="hbtn" data-act="export">${I.dl}Ekspor .xlsx</button><button class="hbtn" data-act="template">${I.sheet}Template</button>`:""}${hasSample?`<span class="sep"></span><button class="hbtn" data-act="unseed">${I.x}Hapus data contoh</button>`:""}`;
 }
 const BN={beranda:"Beranda",roster:"Anggota",alert:"Alert",seleksi:"Seleksi",kartu:"Kartu",laporan:"Laporan"};
 function tabsBar(){
@@ -215,10 +219,10 @@ function vAdminHome(){
   return `<div class="chead"><div><p class="eyebrow">Mode admin</p><h1>Beranda</h1><p>Pendaftaran, alert, seleksi kandidat, dan penugasan berlangsung dalam satu halaman.</p></div><div class="row"><button class="btn" data-act="new-member">${I.plus}Tambah anggota</button><button class="btn primary" data-act="new-alert">${I.bell}Buat alert</button></div></div>
   <div class="stiles five"><div class="stile"><b>${ms.length}</b><span>Anggota roster</span></div><div class="stile"><b>${ms.filter(m=>m.status==="tersedia").length}</b><span>Siap diberangkatkan</span></div><div class="stile"><b>${live.length}</b><span>Penugasan berlangsung</span></div><div class="stile alert"><b>${open.length}</b><span>Alert terbuka</span></div><div class="stile"><b>${reps.length}</b><span>Laporan masuk</span></div></div>
   <div class="grid2">
-    <section class="card" id="sec-daftar"><div class="card-h"><h2>Pendaftaran &amp; login</h2><div class="row" style="gap:6px"><button class="btn sm primary" data-act="gform">${I.sheet}Google Form</button><button class="btn sm" data-act="admins">${I.users}Kelola admin</button></div></div><div class="card-b">${S.intake&&S.intake.last_at?`<p class="muted" style="font-size:.84rem">Google Form: ${S.intake.count||0} jawaban diterima, terakhir ${stampT(Date.parse(S.intake.last_at))}.</p>`:`<p class="note">Pendaftaran anggota memakai Google Form. Tekan <b>Google Form</b> untuk memasang pengiriman otomatis ke roster.</p>`}
-      <div class="row" style="gap:28px"><div><b class="mono" style="font-size:1.45rem">${acc.length}</b><div class="muted" style="font-size:.8rem">daftar dengan email aktif</div></div><div><b class="mono" style="font-size:1.45rem">${wk}</b><div class="muted" style="font-size:.8rem">7 hari terakhir</div></div><div><b class="mono" style="font-size:1.45rem">${ms.filter(m=>m.source==="sheet").length}</b><div class="muted" style="font-size:.8rem">dari Google Sheets</div></div></div>
+    <section class="card" id="sec-daftar"><div class="card-h"><h2>Pendaftaran &amp; login</h2><div class="row" style="gap:6px"><button class="btn sm primary" data-act="sheet">${I.sheet}Sumber data</button><button class="btn sm" data-act="admins">${I.users}Kelola admin</button></div></div><div class="card-b">${syncStatusHTML()}
+      <div class="row" style="gap:28px"><div><b class="mono" style="font-size:1.45rem">${acc.length}</b><div class="muted" style="font-size:.8rem">daftar dengan email aktif</div></div><div><b class="mono" style="font-size:1.45rem">${wk}</b><div class="muted" style="font-size:.8rem">7 hari terakhir</div></div><div><b class="mono" style="font-size:1.45rem">${ms.filter(m=>m.source==="form"||m.source==="sheet").length}</b><div class="muted" style="font-size:.8rem">dari Google Form</div></div></div>
       ${acc.length?`<div class="dlist">${acc.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,5).map(m=>`<div class="ditem" data-act="selm" data-m="${m.id}" style="cursor:pointer">${av(m,"sm")}<div><div class="t">${esc(m.name)}</div><div class="s">${esc(m.email||"")} · ${m.createdAt?stampT(m.createdAt):""}</div></div>${pill(MSTAT,m.status)}</div>`).join("")}</div>`:`<p class="muted">Belum ada yang mendaftar. Bagikan link aplikasi ini; anggota memasukkan email aktif, menerima kode verifikasi, lalu mengisi formulir pendaftaran.</p><div><button class="btn sm" data-act="copytxt" data-t="${esc(location.origin+location.pathname)}">${I.copy}Salin link pendaftaran</button></div>`}
-      ${dupNotice()}${S.mcp?syncStatusHTML():""}</div></section>
+      ${dupNotice()}</div></section>
     <section class="card"><div class="card-h"><h2>Alert terbuka</h2><a class="btn sm" href="#alert">Semua alert</a></div><div class="card-b">${open.length?`<div class="alerts">${open.slice(0,4).map(a=>alertCard(a)).join("")}</div>`:`<p class="muted">Tidak ada alert terbuka.</p><div><button class="btn primary sm" data-act="new-alert">${I.plus}Buat alert</button></div>`}</div></section>
   </div>
   <div class="grid2">
@@ -344,7 +348,7 @@ function alertCard(a,sel){
   const cs=cands(a),inv=cs.length,yes=cs.filter(c=>isYes(c.state)).length,chosen=cs.filter(c=>c.state==="terpilih").length;
   const left=daysBetween(today(),a.deadline);
   const dl=a.status!=="terbuka"?"":left<0?`<span class="deadline" style="color:var(--muted)">Batas konfirmasi lewat</span>`:`<span class="deadline" style="color:${left<=2?"var(--red)":"var(--warn)"}">${left===0?"Batas konfirmasi hari ini":"Sisa "+left+" hari konfirmasi"}</span>`;
-  return `<button class="acard ${a.status==="ditutup"?"closed":a.status==="terisi"?"filled":""} ${sel?"sel":""}" data-act="sela" data-a="${a.id}"><div style="min-width:0;display:flex;flex-direction:column;gap:5px"><div class="row" style="gap:8px"><span class="code-t">${esc(a.code)}</span>${pill(ASTAT,a.status)}${sampleTag(a)}<span class="pill teal">${esc(a.emergency||"")}</span></div><h3>${esc(a.role)} — ${esc(a.title)}</h3><div class="meta"><span>${I.pin}${esc(a.location)}</span><span>${I.cal}${fmt(a.start)}</span><span>${I.clock}${a.dur} hari</span></div>${dl}</div>
+  return `<button class="acard ${a.status==="ditutup"?"closed":a.status==="terisi"?"filled":""} ${sel?"sel":""}" data-act="sela" data-a="${a.id}"><div style="min-width:0;display:flex;flex-direction:column;gap:5px"><div class="row" style="gap:8px"><span class="code-t">${esc(a.code)}</span>${pill(ASTAT,a.status)}${sampleTag(a)}<span class="pill ${kindOf(a)==="bencana"?"red":"teal"}">${KINDS[kindOf(a)]}</span><span class="pill teal">${esc(a.emergency||"")}</span></div><h3>${esc(a.role)} — ${esc(a.title)}</h3><div class="meta"><span>${I.pin}${esc(a.location)}</span><span>${I.cal}${fmt(a.start)}</span><span>${I.clock}${a.dur} hari</span></div>${dl}</div>
     <div class="funnel"><div><b>${inv}</b><span>Kandidat</span></div><div><b>${yes}</b><span>Bersedia</span></div><div><b style="color:var(--red)">${chosen}/${a.slots||1}</b><span>Terpilih</span></div></div></button>`}
 function alertInspector(a){
   if(!a)return ihint("Pilih alert di daftar untuk melihat ringkasan, lalu buka seleksi kandidat.");
@@ -353,7 +357,7 @@ function alertInspector(a){
     <a class="btn primary" href="#seleksi-${a.id}">${I.check}Buka seleksi kandidat</a>
     <button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.mail}Kirim alert lewat email ke semua anggota</button>${bcHistory(a.id)}
     <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-alert" data-a="${a.id}">${I.edit}Ubah</button>${a.status==="terbuka"?`<button class="btn sm" data-act="astatus" data-v="ditutup" data-a="${a.id}">Tutup alert</button>`:`<button class="btn sm" data-act="astatus" data-v="terbuka" data-a="${a.id}">Buka kembali</button>`}<button class="btn sm ghost danger" data-act="del-alert" data-a="${a.id}">Hapus</button></div></div>
-   <div class="isec"><span class="lbl-up">Penugasan</span><dl class="kv"><dt>Jenis bencana</dt><dd>${esc(a.emergency||"-")}</dd><dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Mulai</dt><dd>${fmtLong(a.start)}</dd><dt>Selesai</dt><dd>${fmtLong(endOf(a))}</dd><dt>Durasi</dt><dd>${a.dur} hari</dd><dt>Batas konfirmasi</dt><dd>${fmtLong(a.deadline)}</dd><dt>Kebutuhan</dt><dd>${a.slots||1} orang</dd></dl>${a.desc?`<p class="muted" style="font-size:.86rem;white-space:pre-line">${esc(a.desc)}</p>`:""}</div>
+   <div class="isec"><span class="lbl-up">Penugasan</span><dl class="kv"><dt>Jenis penugasan</dt><dd>${KINDS[kindOf(a)]}</dd><dt>${subLabel(a)}</dt><dd>${esc(a.emergency||"-")}</dd><dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Mulai</dt><dd>${fmtLong(a.start)}</dd><dt>Selesai</dt><dd>${fmtLong(endOf(a))}</dd><dt>Durasi</dt><dd>${a.dur} hari</dd><dt>Batas konfirmasi</dt><dd>${fmtLong(a.deadline)}</dd><dt>Kebutuhan</dt><dd>${a.slots||1} orang</dd></dl>${a.desc?`<p class="muted" style="font-size:.86rem;white-space:pre-line">${esc(a.desc)}</p>`:""}</div>
    <div class="isec"><span class="lbl-up">Kandidat</span><dl class="kv"><dt>Diundang</dt><dd>${n("diundang")}</dd><dt>Mengajukan diri</dt><dd>${n("mengajukan")}</dd><dt>Bersedia</dt><dd>${n("bersedia")}</dd><dt>Menolak</dt><dd>${n("menolak")}</dd><dt>Terpilih</dt><dd>${n("terpilih")} / ${a.slots||1}</dd></dl></div>`}
 function vAlertTab(){
   const as=alerts(),cnt=k=>as.filter(a=>k==="semua"||a.status===k).length,f=S.af;
@@ -369,26 +373,56 @@ function vAlertTab(){
   return {l,c,r:alertInspector(sel)}}
 
 /* ---- tab 3: selection ---- */
+const ROLE_FAM=[["Suplai Air Bersih","Kualitas Air","Operator Unit Pengolahan Air"],["Sanitasi & Limbah","Promosi Kebersihan","Pengendalian Vektor"]];
+const KW={bencana:["wash","watsan","mtdb","satgana","tanggap darurat","tdb","asesmen","assessment","kaji cepat","surge","eru","operator","teknisi","wtu","pengolahan air","water treatment","sanitasi darurat","pengungsian","bencana","respon","logistik","sar","pertolongan pertama","ksr"],
+  non_bencana:["tot","tof","fasilitator","pelatih","trainer","narasumber","instruktur","sertifikasi","bnsp","asesor","phast","chast","modul","kurikulum","workshop","pelatihan","mengajar","guru","dosen","penyuluh","promosi kesehatan","pbi","sibat"]};
+const kwHit=(txt,k)=>k.length<=4?new RegExp("(^|[^a-z])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"([^a-z]|$)").test(txt):txt.includes(k);
+function relevance(m,a){
+  let sc=0;const why=[],kind=kindOf(a);
+  if(m.role===a.role){sc+=40;why.push("Profil cocok")}
+  else if(m.role==="Koordinator WASH"||a.role==="Koordinator WASH"||ROLE_FAM.some(f=>f.includes(m.role)&&f.includes(a.role))){sc+=18;why.push("Profil terkait")}
+  const mine=(a.cand||{})[m.id];
+  if(m.status==="tersedia"){sc+=15;why.push("Tersedia")}
+  else if(m.status==="ditugaskan"&&!(mine&&mine.state==="terpilih")){sc-=40;why.push("Sedang bertugas")}
+  else if(m.status==="tidak"){sc-=25;why.push("Tidak tersedia")}
+  const txt=((m.skills||"")+" "+(m.lang||"")+" "+(m.chapter||"")).toLowerCase();
+  const hits=KW[kind].filter(k=>kwHit(txt,k));
+  if(hits.length){sc+=Math.min(20,hits.length*5);why.push((kind==="bencana"?"Keahlian: ":"Fasilitasi: ")+hits.slice(0,3).join(", "))}
+  const sub=(a.emergency||"").toLowerCase().split(/[\/ ]/)[0];if(sub&&sub.length>3&&sub!=="lainnya"&&txt.includes(sub)){sc+=5;why.push("Pernah "+a.emergency.toLowerCase())}
+  let same=0,other=0;alerts().forEach(x=>{if(x.id===a.id)return;const c=(x.cand||{})[m.id];if(c&&c.state==="terpilih"&&x.start<=today()){kindOf(x)===kind?same++:other++}});
+  if(same||other){sc+=Math.min(15,same*5+other*2);why.push(`Pengalaman ${same+other}× penugasan`)}
+  const prov=(m.province||"").toLowerCase().replace(/^(provinsi|prov\.?)\s+/,"").trim();
+  if(prov&&(a.location||"").toLowerCase().includes(prov)){sc+=kind==="bencana"?10:6;why.push("Provinsi sama")}
+  if(m.level==="Team Leader"&&(a.role==="Koordinator WASH"||kind==="non_bencana")){sc+=8;why.push("Team Leader")}
+  else if(m.level==="Staf PMI"&&kind==="non_bencana"){sc+=4}
+  if(mine&&mine.self&&(mine.state==="mengajukan"||mine.state==="bersedia")){sc+=5;why.push("Mengajukan diri")}
+  return {score:Math.max(0,Math.min(100,sc)),why}}
+const scoreBadge=r=>`<span class="score ${r.score>=60?"hi":r.score>=35?"mid":"lo"}" title="Skor kecocokan: ${r.why.map(esc).join(" · ")}">${r.score}</span>`;
 function inviteList(a){
-  const inv=S.inv,q=inv.q.trim().toLowerCase(),taken=new Set(cands(a).map(c=>c.mid));
-  const pool=members().filter(m=>!taken.has(m.id)).filter(m=>(!inv.roleOnly||m.role===a.role)&&(!inv.availOnly||m.status==="tersedia")&&(!q||(m.name+" "+m.province+" "+m.skills).toLowerCase().includes(q))).sort((x,y)=>(y.role===a.role)-(x.role===a.role)||x.name.localeCompare(y.name));
+  const inv=S.inv;
+  const pool=invitePool(a);
   if(!pool.length)return `<p class="muted" style="padding:12px">Tidak ada anggota yang cocok dengan filter ini.</p>`;
-  return pool.map(m=>`<label><input type="checkbox" data-sel="${m.id}" ${inv.sel.has(m.id)?"checked":""}>${av(m,"sm")}<span class="grow"><b>${esc(m.name)}</b>${sampleTag(m)}<br><small class="muted">${esc(m.role)} · ${esc(m.province||"-")}</small></span>${m.role===a.role?'<span class="match">Profil cocok</span>':""}${pill(MSTAT,m.status)}</label>`).join("")}
+  return pool.map(({m,r},i)=>`<label><input type="checkbox" data-sel="${m.id}" ${inv.sel.has(m.id)?"checked":""}>${scoreBadge(r)}${av(m,"sm")}<span class="grow"><b>${esc(m.name)}</b>${sampleTag(m)}${i<3&&r.score>=35?' <span class="match">Paling cocok</span>':""}<br><small class="muted">${esc(m.role)} · ${esc(m.province||"-")}</small><br><small class="why">${esc(r.why.join(" · ")||"Belum ada kecocokan")}</small></span>${pill(MSTAT,m.status)}</label>`).join("")}
+function invitePool(a){
+  const inv=S.inv,q=inv.q.trim().toLowerCase(),taken=new Set(cands(a).map(c=>c.mid));
+  return members().filter(m=>!taken.has(m.id)).filter(m=>(!inv.roleOnly||m.role===a.role)&&(!inv.availOnly||m.status==="tersedia")&&(!q||(m.name+" "+m.province+" "+m.skills).toLowerCase().includes(q)))
+    .map(m=>({m,r:relevance(m,a)})).sort((x,y)=>y.r.score-x.r.score||x.m.name.localeCompare(y.m.name))}
 function selCenter(a){
   const cs=cands(a).map(c=>Object.assign(c,{m:S.members[c.mid]&&Object.assign({id:c.mid},S.members[c.mid])})).filter(c=>c.m);
-  const order={terpilih:0,bersedia:1,mengajukan:2,diundang:3,menolak:4};cs.sort((x,y)=>order[x.state]-order[y.state]);
+  const grp=st=>st==="terpilih"?0:st==="menolak"?2:1;cs.forEach(c=>{c.rel=relevance(c.m,a)});
+  cs.sort((x,y)=>grp(x.state)-grp(y.state)||y.rel.score-x.rel.score||x.m.name.localeCompare(y.m.name));
   const chosen=cs.filter(c=>c.state==="terpilih").length;
   const rows=cs.map(c=>{const m=c.m,txt=c.state==="terpilih"?selectText(a,m,c):inviteText(a,m),subj=(c.state==="terpilih"?"Penugasan terkonfirmasi: ":"Alert penugasan WASH: ")+a.code+" "+a.role;
-    return `<tr><td><div class="who">${av(m,"sm")}<div><b>${esc(m.name)}</b><small>${esc(m.role)} · ${esc(m.province||"-")}</small></div></div></td><td>${pill(CSTAT,c.state)}${c.self&&c.respAt?`<span class="stamp">Dijawab sendiri ${stampT(c.respAt)}</span>`:""}</td>
+    return `<tr><td><div class="who">${scoreBadge(c.rel)}${av(m,"sm")}<div><b>${esc(m.name)}</b><small>${esc(m.role)} · ${esc(m.province||"-")}</small><small class="why">${esc(c.rel.why.join(" · "))}</small></div></div></td><td>${pill(CSTAT,c.state)}${c.self&&c.respAt?`<span class="stamp">Dijawab sendiri ${stampT(c.respAt)}</span>`:""}</td>
     <td><div class="row" style="gap:6px;flex-wrap:nowrap">${m.email?`<a class="btn sm" target="_blank" rel="noopener" href="${esc(mailHref(m.email,subj,txt))}" data-act="sent" data-ch="email" data-a="${a.id}" data-m="${m.id}">${I.mail}Email</a>`:""}${m.phone?`<a class="btn sm wa" target="_blank" rel="noopener" href="${esc(waHref(m.phone,txt))}" data-act="sent" data-ch="wa" data-a="${a.id}" data-m="${m.id}">${I.wa}WA</a>`:""}<button class="btn sm ghost" data-act="copymsg" data-a="${a.id}" data-m="${m.id}" title="Salin pesan" aria-label="Salin pesan">${I.copy}</button></div>${c.emailAt?`<span class="stamp">Draf email dibuka ${stampT(c.emailAt)}</span>`:""}${c.waAt?`<span class="stamp">Chat WhatsApp dibuka ${stampT(c.waAt)}</span>`:""}</td>
     <td><div class="row" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap">${c.state==="terpilih"?`<button class="btn sm primary" data-act="card" data-a="${a.id}" data-m="${m.id}">${I.id}Kartu ID</button><button class="btn sm ghost" data-act="unselect" data-a="${a.id}" data-m="${m.id}">Batalkan</button>`:
       `${c.state!=="bersedia"?`<button class="btn sm" data-act="cstate" data-v="bersedia" data-a="${a.id}" data-m="${m.id}">Bersedia</button>`:""}${c.state!=="menolak"?`<button class="btn sm" data-act="cstate" data-v="menolak" data-a="${a.id}" data-m="${m.id}">Menolak</button>`:""}<button class="btn sm alert" data-act="select" data-a="${a.id}" data-m="${m.id}" ${c.state==="menolak"||m.status==="ditugaskan"?"disabled":""} title="${m.status==="ditugaskan"?"Sedang bertugas di penugasan lain":"Pilih dan terbitkan kartu"}">Pilih</button>`}${(a.cand||{})[m.id]?`<button class="btn sm ghost danger" data-act="uncand" data-a="${a.id}" data-m="${m.id}" title="Keluarkan dari daftar" aria-label="Keluarkan">${I.x}</button>`:""}</div></td></tr>`}).join("");
-  return `<div class="dhead"><div class="row" style="gap:8px"><span class="mono muted">${esc(a.code)}</span>${pill(ASTAT,a.status)}${sampleTag(a)}<span class="pill teal">${esc(a.emergency||"")}</span></div><h1>${esc(a.role)} — ${esc(a.title)}</h1></div>
+  return `<div class="dhead"><div class="row" style="gap:8px"><span class="mono muted">${esc(a.code)}</span>${pill(ASTAT,a.status)}${sampleTag(a)}<span class="pill ${kindOf(a)==="bencana"?"red":"teal"}">${KINDS[kindOf(a)]}</span><span class="pill teal">${esc(a.emergency||"")}</span></div><h1>${esc(a.role)} — ${esc(a.title)}</h1></div>
   <dl class="facts"><div><dt>Lokasi</dt><dd>${esc(a.location)}</dd></div><div><dt>Periode</dt><dd>${fmt(a.start)} – ${fmt(endOf(a))}</dd></div><div><dt>Durasi</dt><dd>${a.dur} hari</dd></div><div><dt>Batas konfirmasi</dt><dd>${fmt(a.deadline)}</dd></div></dl>
-  <div class="card"><div class="card-h"><div><h2>Kandidat <span class="mono muted" style="font-size:.95rem">${chosen}/${a.slots||1} terpilih</span></h2><p class="muted" style="font-size:.84rem;margin-top:2px">Tombol Email dan WA membuka pesan yang sudah terisi. Pesan terkirim setelah Anda menekan kirim di aplikasi tersebut.</p></div></div>
+  <div class="card"><div class="card-h"><div><h2>Kandidat <span class="mono muted" style="font-size:.95rem">${chosen}/${a.slots||1} terpilih</span></h2><p class="muted" style="font-size:.84rem;margin-top:2px">Diurutkan dari yang paling cocok dengan jenis penugasan (skor 0–100: profil, ketersediaan, keahlian, pengalaman, provinsi). Tombol Email dan WA membuka pesan yang sudah terisi. Pesan terkirim setelah Anda menekan kirim di aplikasi tersebut.</p></div></div>
     ${cs.length?`<div class="tablewrap"><table class="dt"><thead><tr><th>Anggota</th><th>Status</th><th>Kirim alert</th><th style="text-align:right">Keputusan</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="card-b"><p class="muted">Belum ada kandidat. Undang anggota di bawah, atau tunggu relawan mengajukan diri dari portal mereka.</p></div>`}</div>
-  ${a.status==="terbuka"?`<div class="card"><div class="card-h"><div><h2>Undang anggota roster</h2><p class="muted" style="font-size:.84rem;margin-top:2px">Centang anggota lalu masukkan ke daftar kandidat. Setelah itu kirim alert lewat Email atau WA di tabel atas.</p></div></div><div class="card-b">
-    <div class="toolbar"><label class="search">${I.search}<input id="invq" placeholder="Cari anggota…" value="${esc(S.inv.q)}" aria-label="Cari anggota untuk diundang"></label><label class="toggle"><input type="checkbox" id="invrole" ${S.inv.roleOnly?"checked":""}>Hanya profil ${esc(a.role)}</label><label class="toggle"><input type="checkbox" id="invavail" ${S.inv.availOnly?"checked":""}>Hanya yang tersedia</label></div>
+  ${a.status==="terbuka"?`<div class="card"><div class="card-h"><div><h2>Undang anggota roster</h2><p class="muted" style="font-size:.84rem;margin-top:2px">Anggota paling cocok ada di atas. Centang anggota lalu masukkan ke daftar kandidat. Setelah itu kirim alert lewat Email atau WA di tabel atas.</p></div></div><div class="card-b">
+    <div class="toolbar"><label class="search">${I.search}<input id="invq" placeholder="Cari anggota…" value="${esc(S.inv.q)}" aria-label="Cari anggota untuk diundang"></label><label class="toggle"><input type="checkbox" id="invrole" ${S.inv.roleOnly?"checked":""}>Hanya profil ${esc(a.role)}</label><label class="toggle"><input type="checkbox" id="invavail" ${S.inv.availOnly?"checked":""}>Hanya yang tersedia</label><button class="btn sm" data-act="inv-top" data-a="${a.id}">${I.check}Centang 10 teratas</button></div>
     <div class="pick" id="pick">${inviteList(a)}</div>
     <div class="spread"><span class="muted" id="selcount">${S.inv.sel.size} dipilih</span><button class="btn primary" data-act="invite" data-a="${a.id}" ${S.inv.sel.size?"":"disabled"} id="invbtn">Masukkan ke daftar kandidat</button></div></div></div>`:""}`}
 function selInspector(a){
@@ -494,7 +528,7 @@ function sheetPlan(headers,rows,idx,defRole){
 async function applyOps(ops,onStep){let ok=0,fail=0,i=0;S.suspend=true;
   const worker=async()=>{while(i<ops.length){const o=ops[i++];let done=false;for(let t=0;t<3&&!done;t++){try{await write(o.kind,"members",o.id,o.data);done=true}catch(e){if(!e||!(e.code==="resource_exhausted"||e.code==="unavailable"))break;await new Promise(z=>setTimeout(z,1200*(t+1)))}}done?ok++:fail++;onStep&&onStep(ok+fail,ops.length)}};
   try{await Promise.all([worker(),worker(),worker()])}finally{S.suspend=false;render()}return {ok,fail}}
-async function syncSheet(manual){
+async function syncSheetUnused(manual){
   const cfg=S.sync;if(!cfg||!cfg.id||!cfg.sheet||!S.mcp||S.syncing)return;
   S.syncing=true;S.syncErr="";render();
   try{const {headers,rows}=await gsGrid(cfg.id,cfg.sheet);
@@ -505,7 +539,7 @@ async function syncSheet(manual){
     if(manual)toast(plan.ops.length?`Sinkron selesai: ${plan.add} baru, ${plan.upd} diperbarui`:"Sinkron selesai: tidak ada perubahan")}
   catch(e){S.syncErr=gsErr(e);if(manual)toast(S.syncErr)}
   finally{S.syncing=false;render()}}
-function syncStatusHTML(compact){
+function syncStatusHTMLUnused(compact){
   if(!S.mcp)return "";
   const cfg=S.sync;if(!cfg||!cfg.id)return `<div class="lbox"><b>Google Sheets</b><span class="muted">Belum terhubung. Tarik data roster otomatis dari link spreadsheet.</span><button class="btn sm primary" data-act="sheet">${I.sheet}Hubungkan spreadsheet</button></div>`;
   const l=S.syncLocal||cfg.last;
@@ -515,7 +549,7 @@ function syncStatusHTML(compact){
     ${S.syncErr?`<span class="err" style="font-size:.8rem">${esc(S.syncErr)}</span>`:""}
     <div class="row" style="gap:6px"><button class="btn sm primary" data-act="sheet-sync" ${S.syncing?"disabled":""}>Sinkronkan sekarang</button><button class="btn sm" data-act="sheet">Pengaturan</button></div>
     <span class="muted" style="font-size:.74rem">Otomatis tiap 10 menit selama halaman ini dibuka admin.</span></div>`}
-function sheetModal(){
+function sheetModalUnused(){
   const d=S.sheetDraft,cfg=S.sync||{};
   if(!d){openModal("Sinkron dari Google Sheets",`<p class="muted">Tempel link Google Sheets berisi data roster. Data dicocokkan ke roster berdasarkan email atau nomor WhatsApp.</p>
      <div class="field"><label for="shurl">Link spreadsheet</label><input class="input" id="shurl" placeholder="https://docs.google.com/spreadsheets/d/…" value="${esc(cfg.url||"")}"></div>
@@ -534,7 +568,8 @@ function sheetModal(){
 async function sheetLoadGrid(){const d=S.sheetDraft;try{const {headers,rows}=await gsGrid(d.id,d.sheet);d.headers=headers;d.rows=rows;const same=S.sync&&S.sync.id===d.id&&S.sync.sheet===d.sheet;d.idx=same?idxFromCfg(headers,S.sync.map):autoMap(headers);sheetModal()}catch(e){d.headers=null;sheetModal();const er=$("#sherr");if(er){er.textContent=gsErr(e);er.hidden=false}}}
 function refreshSheetPlan(){const d=S.sheetDraft;const el=$("#shplan");if(!d||!el)return;const p=sheetPlan(d.headers,d.rows,d.idx,d.defRole);el.innerHTML=`<span class="pill ok">${p.add} baru</span><span class="pill teal">${p.upd} diperbarui</span><span class="pill off">${p.skip} dilewati</span><span class="muted" style="font-size:.82rem;align-self:center">${p.same} sudah sama · ${p.total} baris</span>`}
 let syncTimer=null;
-function startAutoSync(){if(syncTimer||!S.isAdmin||!S.mcp)return;syncTimer=setInterval(()=>{if(document.visibilityState==="visible")syncSheet(false)},600000);if(S.sync&&S.sync.id)syncSheet(false)}
+function startAutoSync(){}
+function startAutoSyncUnused(){if(syncTimer||!S.isAdmin||!S.mcp)return;syncTimer=setInterval(()=>{if(document.visibilityState==="visible")syncSheet(false)},600000);if(S.sync&&S.sync.id)syncSheet(false)}
 
 /* ---- asisten ---- */
 function renderChat(){
@@ -730,10 +765,11 @@ function exportRoster(){saveXlsx(`roster-wash-${today()}.xlsx`,[["Roster",member
 function templateXlsx(){saveXlsx("template-roster-wash.xlsx",[["Roster",[FIELDS.map(f=>f[1]),["Nama Relawan Contoh","081234567890","relawan@contoh.id","Promosi Kebersihan","Relawan (KSR/TSR)","Jawa Tengah","PMI Kota Semarang","PHAST, CHAST","Indonesia","Tersedia"]]],["Pilihan",[["Profil WASH","Kategori","Status"],...ROLES.map((r,i)=>[r,LEVELS[i]||"",["Tersedia","Tidak tersedia"][i]||""])]]])}
 
 function alertForm(a){
-  const t=today();a=a||{role:ROLES[0],emergency:EMERG[0],start:addDays(t,3),dur:14,deadline:addDays(t,1),slots:1};
+  const t=today();a=a||{kind:"bencana",role:ROLES[0],emergency:EMERG[0],start:addDays(t,3),dur:14,deadline:addDays(t,1),slots:1};const k=kindOf(a),subs=k==="bencana"?EMERG:NONB;
   openModal(a.id?"Ubah alert":"Buat alert penugasan",`<form class="form" id="aform" novalidate>
-    <div class="field full"><label for="atitle">Nama operasi</label><input class="input" id="atitle" placeholder="mis. Tanggap Darurat Banjir Demak" value="${esc(a.title||"")}"></div>
-    <div class="field"><label for="aemerg">Jenis bencana</label><select class="input" id="aemerg">${EMERG.map(r=>`<option ${a.emergency===r?"selected":""}>${r}</option>`).join("")}</select></div>
+    <div class="field full"><label for="atitle">Nama operasi</label><input class="input" id="atitle" placeholder="mis. Tanggap Darurat Banjir Demak / Pelatihan WASH Kab. Sikka" value="${esc(a.title||"")}"></div>
+    <div class="field"><label for="akind">Jenis penugasan</label><select class="input" id="akind">${Object.entries(KINDS).map(([v,l])=>`<option value="${v}" ${k===v?"selected":""}>${l}</option>`).join("")}</select><span class="hint">Non bencana: pelatihan, workshop, simulasi, dll.</span></div>
+    <div class="field"><label for="aemerg" id="aemergl">${subLabel(a)}</label><select class="input" id="aemerg">${subs.concat(subs.includes(a.emergency)||!a.emergency?[]:[a.emergency]).map(r=>`<option ${a.emergency===r?"selected":""}>${esc(r)}</option>`).join("")}</select></div>
     <div class="field"><label for="arole">Posisi yang dibutuhkan</label><select class="input" id="arole">${ROLES.map(r=>`<option ${a.role===r?"selected":""}>${esc(r)}</option>`).join("")}</select></div>
     <div class="field full"><label for="aloc">Lokasi penugasan</label><input class="input" id="aloc" placeholder="Kecamatan, Kabupaten, Provinsi" value="${esc(a.location||"")}"></div>
     <div class="field"><label for="astart">Tanggal mulai</label><input class="input" id="astart" type="date" value="${esc(a.start)}"></div>
@@ -746,7 +782,7 @@ function alertForm(a){
 }
 async function saveAlert(id){
   const v=k=>($("#"+k).value||"").trim();
-  const f={title:v("atitle"),emergency:v("aemerg"),role:v("arole"),location:v("aloc"),start:v("astart"),dur:Math.max(1,parseInt(v("adur"))||1),deadline:v("adead"),slots:Math.max(1,parseInt(v("aslots"))||1),desc:v("adesc")};
+  const f={kind:v("akind")==="non_bencana"?"non_bencana":"bencana",title:v("atitle"),emergency:v("aemerg"),role:v("arole"),location:v("aloc"),start:v("astart"),dur:Math.max(1,parseInt(v("adur"))||1),deadline:v("adead"),slots:Math.max(1,parseInt(v("aslots"))||1),desc:v("adesc")};
   const err=$("#aerr");
   if(!f.title||!f.location||!f.start||!f.deadline){err.textContent="Isi nama operasi, lokasi, tanggal mulai, dan batas konfirmasi.";err.hidden=false;return}
   if(f.deadline>f.start){err.textContent="Batas konfirmasi harus sebelum atau sama dengan tanggal mulai.";err.hidden=false;return}
@@ -931,6 +967,7 @@ document.addEventListener("click",async e=>{
     case"af":S.af=b.dataset.v;render();break;
     case"seed":seed();break;
     case"unseed":if(arm(b,"us","Tekan lagi untuk menghapus"))unseed();break;
+    case"inv-top":{const a=S.alerts[aid]&&Object.assign({id:aid},S.alerts[aid]);if(!a)break;const top=invitePool(a).filter(x=>x.r.score>0).slice(0,10);top.forEach(x=>S.inv.sel.add(x.m.id));render();toast(top.length?top.length+" anggota paling cocok dicentang. Tekan Masukkan ke daftar kandidat.":"Tidak ada anggota yang cocok.");break}
     case"invite":{const add={};S.inv.sel.forEach(id=>add[id]={state:"diundang",invitedAt:Date.now()});const n=S.inv.sel.size;S.inv.sel.clear();await write("update","alerts",aid,{cand:add}).catch(()=>{});toast(n+" anggota masuk daftar kandidat. Kirim alert lewat tombol Email/WhatsApp.");break}
     case"sent":{const k=b.dataset.ch==="wa"?"waAt":"emailAt";write("update","alerts",aid,{cand:{[mid]:{[k]:Date.now()}}}).catch(()=>{});break}
     case"copymsg":{const m=S.members[mid],c=a.cand[mid];copy(c.state==="terpilih"?selectText(a,m,c):inviteText(a,m),"Pesan");break}
@@ -962,6 +999,7 @@ document.addEventListener("change",e=>{
   if(t.id==="fprov"){S.f.prov=t.value;render()}
   else if(t.id==="fstat"){S.f.status=t.value;render()}
   else if(t.id==="invrole"){S.inv.roleOnly=t.checked;render()}
+  else if(t.id==="akind"){const subs=t.value==="non_bencana"?NONB:EMERG;$("#aemerg").innerHTML=subs.map(r=>`<option>${esc(r)}</option>`).join("");$("#aemergl").textContent=t.value==="non_bencana"?"Jenis kegiatan":"Jenis bencana"}
   else if(t.id==="invavail"){S.inv.availOnly=t.checked;render()}
   else if(t.id==="mfile"){const f=t.files[0];if(!f)return;resizePhoto(f).then(d=>{S.pendingPhoto=d;$("#mphoto").innerHTML=`<img class="av lg" src="${d}" alt="">`}).catch(()=>toast("Foto tidak bisa dibaca. Coba file JPG atau PNG."))}
   else if(t.id==="impfile"){const f=t.files[0];if(f)handleFile(f)}
@@ -993,7 +1031,7 @@ route();
 const isoT=t=>t?new Date(t).toISOString():null;
 const msT=t=>t?Date.parse(t):null;
 const MCOLS={name:"name",email:"email",mis:"mis",phone:"phone",role:"role",level:"level",province:"province",chapter:"chapter",skills:"skills",lang:"lang",status:"status",photo:"photo",source:"source",sheetSig:"sheet_sig"};
-const ACOLS={code:"code",title:"title",emergency:"emergency",role:"role",location:"location",start:"start_date",dur:"dur",deadline:"deadline",slots:"slots",desc:"description",status:"status"};
+const ACOLS={code:"code",title:"title",emergency:"emergency",role:"role",location:"location",start:"start_date",dur:"dur",deadline:"deadline",slots:"slots",desc:"description",status:"status",kind:"kind"};
 function memberRow(d){const o={};for(const k in MCOLS)if(d[k]!==undefined)o[MCOLS[k]]=d[k]==null?"":d[k];if(o.sheet_sig==="")o.sheet_sig=null;if(o.email!==undefined)o.email=String(o.email||"").toLowerCase()||null;return o}
 function alertRow(d){const o={};for(const k in ACOLS)if(d[k]!==undefined)o[ACOLS[k]]=d[k];if(d.announce!==undefined){o.announce_at=d.announce&&d.announce.at?isoT(d.announce.at):null;o.announce_note=d.announce&&d.announce.note||""}return o}
 function candRow(c){const o={};if(c.state!==undefined)o.state=c.state;if(c.self!==undefined)o.self_response=!!c.self;
@@ -1054,12 +1092,13 @@ async function loadAll(){
   m.forEach(x=>{members[x.id]={name:x.name,email:x.email||"",phone:x.phone,role:x.role,level:x.level,province:x.province,chapter:x.chapter,skills:x.skills,lang:x.lang,mis:x.mis||"",status:x.status,photo:x.photo,source:x.source,account:!!x.user_id,hasPassword:!!x.has_password,sheetSig:x.sheet_sig,createdAt:msT(x.created_at),reports:{}};if(x.user_id===me)myId=x.id});
   r.forEach(x=>{const mm=members[x.member_id];if(mm)mm.reports[x.alert_id]={summary:x.summary,metrics:x.metrics||{},cond:x.cond,issues:x.issues,recs:x.recs,seen:x.seen,at:msT(x.submitted_at)}});
   const alerts={};
-  a.forEach(x=>{alerts[x.id]={code:x.code,title:x.title,emergency:x.emergency,role:x.role,location:x.location,start:x.start_date,dur:x.dur,deadline:x.deadline,slots:x.slots,desc:x.description,status:x.status,createdAt:msT(x.created_at),announce:x.announce_at?{at:msT(x.announce_at),note:x.announce_note}:null,cand:{}}});
+  a.forEach(x=>{alerts[x.id]={kind:x.kind||"bencana",code:x.code,title:x.title,emergency:x.emergency,role:x.role,location:x.location,start:x.start_date,dur:x.dur,deadline:x.deadline,slots:x.slots,desc:x.description,status:x.status,createdAt:msT(x.created_at),announce:x.announce_at?{at:msT(x.announce_at),note:x.announce_note}:null,cand:{}}});
   c.forEach(x=>{const al=alerts[x.alert_id];if(!al)return;al.cand[x.member_id]={state:x.state,self:x.self_response,respAt:x.self_response?msT(x.answered_at):null,answeredAt:x.self_response?null:msT(x.answered_at),invitedAt:msT(x.invited_at),emailAt:msT(x.email_at),waAt:msT(x.wa_at),cardNo:x.card_no||"",selectedAt:msT(x.selected_at),name:x.name||"",thumb:x.thumb||""}});
   S.members=members;S.alerts=alerts;
   const app=s.find(x=>x.key==="app"),sh=s.find(x=>x.key==="sheet");
   const ik=s.find(x=>x.key==="intake");
   S.settings={app:app?app.value:{}};S.sync=sh?sh.value:null;S.intake=ik?ik.value:null;
+  const ss=s.find(x=>x.key==="sheet_source");S.sheetSource=ss?ss.value:null;
   S.uid=myId||"me";S.mcp=S.isAdmin?{}:null;
   S.meProfile={email:(S.session.user.email||"").toLowerCase(),name:""};
   S.loaded=true;S.loadErr=false;render();
@@ -1385,6 +1424,60 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]
   else if(a==="rsel-all"){S.rsel=S.rsel||new Set();const ids=filteredMembers().map(m=>m.id);if(b.checked)ids.forEach(id=>S.rsel.add(id));else ids.forEach(id=>S.rsel.delete(id));const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
   else if(a==="rsel-clear"){S.rsel.clear();const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
   else if(a==="rsel-del"){if(!arm(b,"rdel","Tekan lagi: hapus permanen"))return;const ids=[...S.rsel];S.suspend=true;let ok=0;for(const id of ids){try{await write("delete","members",id);ok++}catch(err){}}S.suspend=false;S.rsel.clear();if(ids.includes(S.selMember))S.selMember=null;toast(ok+" anggota dihapus");await loadAll()}
+},true);
+
+/* ---------- sumber data: spreadsheet jawaban Google Form (sinkron di server tiap 5 menit) ---------- */
+async function srcCall(body){
+  const {data:{session}}=await sb.auth.getSession();
+  try{const r=await fetch(SB_URL+"/functions/v1/sheet-sync",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+((session&&session.access_token)||SB_KEY)},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));return Object.assign({httpOk:r.ok,http:r.status},j)}
+  catch(e){return {httpOk:false,error:"Tidak bisa menghubungi server. Periksa koneksi."}}}
+function srcResultText(l){if(!l)return"";return `${l.new||0} baru, ${(l.updated||0)+(l.filled||0)} diperbarui, ${l.unchanged||0} tetap${l.errors?`, ${l.errors} dilewati`:""}`}
+function syncStatusHTML(){
+  if(!S.isAdmin)return"";
+  const c=S.sheetSource,ik=S.intake||{};
+  const form=ik.last_at?`<span class="muted" style="font-size:.78rem">Apps Script Google Form: ${ik.count||0} jawaban, terakhir ${stampT(Date.parse(ik.last_at))}.</span>`:"";
+  if(!c||!c.url)return `<div class="lbox"><b>Sumber data</b><span class="muted">Belum terhubung. Tempel link spreadsheet jawaban Google Form; anggota baru otomatis masuk roster setiap form terisi.</span><button class="btn sm primary" data-act="sheet">${I.sheet}Hubungkan spreadsheet</button>${form}</div>`;
+  const off=c.enabled===false,err=c.last_error;
+  return `<div class="lbox"><div class="spread"><b>Spreadsheet jawaban Form</b>${S.srcBusy?`<span class="pill teal">Menyinkronkan…</span>`:off?`<span class="pill off">Dijeda</span>`:err?`<span class="pill red">Gagal</span>`:`<span class="pill ok">Otomatis</span>`}</div>
+    ${c.last_at?`<span class="muted">Terakhir ${stampT(Date.parse(c.last_at))}${c.last_result?": "+srcResultText(c.last_result):""}</span>`:`<span class="muted">Menunggu sinkron pertama.</span>`}
+    ${err?`<span class="err" style="font-size:.8rem">${esc(err)}</span>`:""}
+    <div class="row" style="gap:6px"><button class="btn sm primary" data-act="sheet-sync" ${S.srcBusy?"disabled":""}>Sinkronkan sekarang</button><button class="btn sm" data-act="sheet">Pengaturan</button></div>
+    <span class="muted" style="font-size:.74rem">Server memeriksa spreadsheet tiap 5 menit, walau aplikasi tidak dibuka.</span>${form}</div>`}
+function sheetModal(){
+  const c=S.sheetSource||{},t=S.srcTest;
+  const prev=t&&t.preview&&t.preview.length?`<div style="overflow-x:auto"><table class="dt" style="font-size:.8rem"><thead><tr><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Profil</th><th>Provinsi</th><th>No. MIS</th></tr></thead><tbody>${t.preview.map(p=>`<tr><td>${esc(p.name||"—")}</td><td>${esc(p.email||"—")}</td><td>${esc(p.phone||"—")}</td><td>${esc(p.role||"(bawaan)")}</td><td>${esc(p.province||"—")}</td><td>${esc(p.mis||"—")}</td></tr>`).join("")}</tbody></table></div>`:"";
+  openModal("Sumber data roster",`<p class="muted">Hubungkan spreadsheet jawaban Google Form pendaftaran. Setiap jawaban baru otomatis menjadi anggota roster (dicocokkan lewat email, jadi tidak ada pendaftaran ganda).</p>
+     <div class="field"><label for="srcurl">Link spreadsheet jawaban</label><input class="input" id="srcurl" placeholder="https://docs.google.com/spreadsheets/d/…/edit#gid=0" value="${esc((t&&t.url)||c.url||"")}"></div>
+     <p class="err" id="srcerr" ${S.srcErr?"":"hidden"}>${esc(S.srcErr||"")}</p>
+     ${t&&t.ok?`<div class="note" style="display:flex;flex-direction:column;gap:6px"><b style="color:var(--ink)">Terbaca: ${t.rows} jawaban · ${t.headers.length} kolom</b>${prev}<span>Kolom dikenali dari judul pertanyaan: nama, email, WhatsApp, provinsi, markas/cabang, profil/bidang, keahlian/pelatihan, No. MIS (SIAMO).</span></div>`:""}
+     <div class="note" style="display:flex;flex-direction:column;gap:5px"><b style="color:var(--ink)">Cara mendapatkan link</b>
+       <span>1. Di Google Form → tab <b>Jawaban</b> → <b>Tautkan ke Spreadsheet</b>.</span>
+       <span>2. Di spreadsheet: <b>Bagikan → Akses umum → Siapa saja yang memiliki link (Pelihat)</b>.</span>
+       <span>3. Salin link dari bilah alamat, tempel di atas, tekan <b>Tes</b>.</span>
+       <span class="muted" style="font-size:.78rem">Siapa pun yang memegang link bisa melihat isinya; bagikan link hanya kepada admin.</span></div>
+     <p class="muted" style="font-size:.8rem">Ingin tanpa membagikan spreadsheet? <button class="btn sm ghost" data-act="gform">Pakai Apps Script Google Form</button></p>`,
+    `${c.url?`<button class="btn ghost danger" data-act="src-off" style="margin-right:auto">Putuskan</button>`:""}<button class="btn" data-act="close">Batal</button><button class="btn" data-act="src-test" ${S.srcBusy?"disabled":""}>${S.srcBusy==="test"?"Membaca…":"Tes"}</button><button class="btn primary" data-act="src-save" ${t&&t.ok&&!S.srcBusy?"":"disabled"}>Simpan &amp; sinkronkan</button>`,true)}
+async function syncSheet(manual){
+  if(!S.isAdmin||S.srcBusy)return;S.srcBusy="run";render();
+  const r=await srcCall({mode:"run"});S.srcBusy=false;
+  if(manual)toast(r.httpOk?(r.skipped?"Belum ada spreadsheet yang dihubungkan.":"Sinkron selesai: "+srcResultText(r)):(r.error||"Sinkron gagal."));
+  await loadAll()}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="sheet"){e.preventDefault();e.stopImmediatePropagation();if(!S.isAdmin){toast("Masuk Mode Admin dulu.");return}S.srcTest=null;S.srcErr="";sheetModal();return}
+  if(a==="src-test"){e.preventDefault();e.stopImmediatePropagation();const url=($("#srcurl").value||"").trim();
+    if(!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(url)){S.srcErr="Link harus link Google Spreadsheet (https://docs.google.com/spreadsheets/…).";S.srcTest=null;sheetModal();return}
+    S.srcBusy="test";S.srcErr="";S.srcTest={url};sheetModal();
+    const r=await srcCall({mode:"test",url});S.srcBusy=false;
+    if(r.httpOk&&r.ok){S.srcTest=Object.assign({url},r);if(!r.rows)S.srcErr="Spreadsheet terbaca, tapi belum ada jawaban.";}else{S.srcTest={url};S.srcErr=r.error||"Spreadsheet tidak bisa dibaca."}
+    sheetModal();return}
+  if(a==="src-save"){e.preventDefault();e.stopImmediatePropagation();const t=S.srcTest;if(!t||!t.ok)return;
+    const v=Object.assign({},S.sheetSource||{},{url:t.url,enabled:true,saved_at:new Date().toISOString()});
+    if(!S.sheetSource||S.sheetSource.url!==t.url){delete v.last_at;delete v.last_result;delete v.last_error}
+    try{await write("set","settings","sheet_source",v);S.sheetSource=v}catch(err){S.srcErr="Gagal menyimpan: "+(err.message||err);sheetModal();return}
+    closeModal();syncSheet(true);return}
+  if(a==="src-off"){e.preventDefault();e.stopImmediatePropagation();if(!arm(b,"srcoff","Tekan lagi untuk memutuskan"))return;closeModal();
+    await write("delete","settings","sheet_source").catch(()=>{});S.sheetSource=null;toast("Spreadsheet diputus. Anggota yang sudah masuk tetap ada.");render();return}
 },true);
 
 boot();

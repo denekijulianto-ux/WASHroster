@@ -130,3 +130,15 @@ MOCK=1 npx vite --port 5179 &
 node tools/test/e2e.cjs     # butuh Playwright
 ```
 Uji ini memakai backend tiruan di browser (`tools/test/mock-supabase.js`), bukan Supabase sungguhan.
+
+## Sumber data otomatis (spreadsheet jawaban Google Form)
+
+1. Jalankan `supabase/sheet_source.sql` (sudah dijalankan di proyek produksi) dan deploy Edge Function `sheet-sync` dengan `verify_jwt = false` (fungsi memeriksa sendiri rahasia cron atau sesi admin).
+2. Di Google Form → **Jawaban → Tautkan ke Spreadsheet**. Bagikan spreadsheet: **Siapa saja yang memiliki link – Pelihat**.
+3. Di aplikasi (Mode Admin) → **Sumber data** → tempel link → **Tes** → **Simpan & sinkronkan**.
+
+`pg_cron` memanggil `sheet-sync` tiap 5 menit. Baris baru masuk roster (dicocokkan lewat email); baris yang tidak berubah dilewati, jadi anggota yang dihapus admin tidak dibuat ulang kecuali jawabannya berubah.
+
+## Seleksi kandidat berdasarkan relevansi
+
+Alert punya **jenis penugasan**: *Bencana* (banjir, gempa, …) atau *Non bencana* (pelatihan, workshop, simulasi, …). Setiap anggota diberi skor 0–100: kecocokan profil WASH, ketersediaan, kata kunci keahlian sesuai jenis penugasan (mis. MTDB/Satgana/asesmen untuk bencana; TOT/fasilitator/PHAST untuk non bencana), pengalaman penugasan sebelumnya, provinsi yang sama dengan lokasi, dan level. Daftar undangan dan tabel kandidat diurutkan dari skor tertinggi; tombol **Centang 10 teratas** memilih kandidat paling cocok sekaligus.

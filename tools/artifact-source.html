@@ -257,6 +257,9 @@ textarea.input{min-height:90px;resize:vertical}
 .pick input{width:17px;height:17px;accent-color:var(--teal)}
 .pick .grow{flex:1;min-width:0}
 .pick .match{font-size:.72rem;font-weight:600;color:var(--teal)}
+.score{flex:none;display:inline-grid;place-items:center;min-width:34px;height:26px;padding:0 6px;border-radius:8px;font:700 .8rem/1 var(--mono,ui-monospace,monospace);border:1px solid var(--line)}
+.score.hi{background:var(--teal);color:var(--teal-ink);border-color:transparent}.score.mid{background:var(--teal-soft);color:var(--ink)}.score.lo{color:var(--muted)}
+.why{display:block;font-size:.72rem;color:var(--muted);line-height:1.3;margin-top:2px;white-space:normal}
 .toggle{display:inline-flex;gap:6px;align-items:center;font-size:.84rem;font-weight:600}
 .toggle input{accent-color:var(--teal)}
 .msgbox{white-space:pre-wrap;font-family:var(--f-mono);font-size:.76rem;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:240px;overflow:auto}
@@ -454,6 +457,10 @@ details.opt summary{cursor:pointer;font-weight:600;font-size:.9rem}
 "use strict";
 const ROLES=["Koordinator WASH","Suplai Air Bersih","Sanitasi & Limbah","Promosi Kebersihan","Kualitas Air","Pengendalian Vektor","Operator Unit Pengolahan Air"];
 const LEVELS=["Relawan (KSR/TSR)","Staf PMI","Team Leader"];
+const KINDS={bencana:"Bencana",non_bencana:"Non bencana"};
+const NONB=["Pelatihan","Workshop","Simulasi","Asesmen/Survei","Fasilitasi kegiatan","Lainnya"];
+const kindOf=a=>a&&a.kind==="non_bencana"?"non_bencana":"bencana";
+const subLabel=a=>kindOf(a)==="non_bencana"?"Jenis kegiatan":"Jenis bencana";
 const EMERG=["Banjir","Gempa Bumi","Tsunami","Erupsi Gunung Api","Tanah Longsor","Kekeringan","Kebakaran","Wabah Penyakit","Pengungsian"];
 const PROV=["Aceh","Sumatera Utara","Sumatera Barat","Riau","Kepulauan Riau","Jambi","Bengkulu","Sumatera Selatan","Kepulauan Bangka Belitung","Lampung","Banten","DKI Jakarta","Jawa Barat","Jawa Tengah","DI Yogyakarta","Jawa Timur","Bali","Nusa Tenggara Barat","Nusa Tenggara Timur","Kalimantan Barat","Kalimantan Tengah","Kalimantan Selatan","Kalimantan Timur","Kalimantan Utara","Sulawesi Utara","Gorontalo","Sulawesi Tengah","Sulawesi Barat","Sulawesi Selatan","Sulawesi Tenggara","Maluku","Maluku Utara","Papua","Papua Barat","Papua Barat Daya","Papua Tengah","Papua Pegunungan","Papua Selatan"];
 const MSTAT={tersedia:["Tersedia","ok"],ditugaskan:["Bertugas","red"],tidak:["Tidak tersedia","off"]};
@@ -483,7 +490,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const newId=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const S={mode:"pending",db:null,members:{},alerts:{},loaded:false,loadErr:false,route:"beranda",
-  f:{q:"",role:"",status:"",prov:""},af:"aktif",inv:{q:"",roleOnly:true,availOnly:true,sel:new Set()},downloads:null,
+  f:{q:"",role:"",status:"",prov:""},af:"aktif",inv:{q:"",roleOnly:false,availOnly:true,sel:new Set()},downloads:null,
   uid:null,isAdmin:true,meProfile:null,suspend:false,imp:null,view:"",
   settings:{},viewAs:(()=>{try{return localStorage.getItem("rosterwash.mode")||"admin"}catch(e){return"admin"}})(),selRep:null,rf:"semua",sync:null,syncLocal:null,syncing:false,syncErr:"",mcp:null,sheetDraft:null,selMember:null,selAlert:null,selCard:null,kg:"semua",fe:"",sample:null,chat:[],chatBusy:false};
 S.f.src="";S.af="terbuka";
@@ -587,7 +594,7 @@ function toolbar(){
   const hasSample=members().some(m=>m.sample)||alerts().some(a=>a.sample);
   const xl=S.downloads&&window.XLSX;
   $("#tbar").innerHTML=`<button class="hbtn" data-act="new-member">${I.plus}Tambah anggota</button><button class="hbtn" data-act="new-alert">${I.bell}Buat alert</button><span class="sep"></span>
-   <button class="hbtn" data-act="gform">${I.sheet}Google Form</button><button class="hbtn" data-act="import">${I.up}Impor Excel / CSV</button>${xl?`<button class="hbtn" data-act="export">${I.dl}Ekspor .xlsx</button><button class="hbtn" data-act="template">${I.sheet}Template</button>`:""}${hasSample?`<span class="sep"></span><button class="hbtn" data-act="unseed">${I.x}Hapus data contoh</button>`:""}`;
+   <button class="hbtn" data-act="sheet">${I.sheet}Sumber data</button><button class="hbtn" data-act="import">${I.up}Impor Excel / CSV</button>${xl?`<button class="hbtn" data-act="export">${I.dl}Ekspor .xlsx</button><button class="hbtn" data-act="template">${I.sheet}Template</button>`:""}${hasSample?`<span class="sep"></span><button class="hbtn" data-act="unseed">${I.x}Hapus data contoh</button>`:""}`;
 }
 const BN={beranda:"Beranda",roster:"Anggota",alert:"Alert",seleksi:"Seleksi",kartu:"Kartu",laporan:"Laporan"};
 function tabsBar(){
@@ -659,10 +666,10 @@ function vAdminHome(){
   return `<div class="chead"><div><p class="eyebrow">Mode admin</p><h1>Beranda</h1><p>Pendaftaran, alert, seleksi kandidat, dan penugasan berlangsung dalam satu halaman.</p></div><div class="row"><button class="btn" data-act="new-member">${I.plus}Tambah anggota</button><button class="btn primary" data-act="new-alert">${I.bell}Buat alert</button></div></div>
   <div class="stiles five"><div class="stile"><b>${ms.length}</b><span>Anggota roster</span></div><div class="stile"><b>${ms.filter(m=>m.status==="tersedia").length}</b><span>Siap diberangkatkan</span></div><div class="stile"><b>${live.length}</b><span>Penugasan berlangsung</span></div><div class="stile alert"><b>${open.length}</b><span>Alert terbuka</span></div><div class="stile"><b>${reps.length}</b><span>Laporan masuk</span></div></div>
   <div class="grid2">
-    <section class="card" id="sec-daftar"><div class="card-h"><h2>Pendaftaran &amp; login</h2><div class="row" style="gap:6px"><button class="btn sm primary" data-act="gform">${I.sheet}Google Form</button><button class="btn sm" data-act="admins">${I.users}Kelola admin</button></div></div><div class="card-b">${S.intake&&S.intake.last_at?`<p class="muted" style="font-size:.84rem">Google Form: ${S.intake.count||0} jawaban diterima, terakhir ${stampT(Date.parse(S.intake.last_at))}.</p>`:`<p class="note">Pendaftaran anggota memakai Google Form. Tekan <b>Google Form</b> untuk memasang pengiriman otomatis ke roster.</p>`}
-      <div class="row" style="gap:28px"><div><b class="mono" style="font-size:1.45rem">${acc.length}</b><div class="muted" style="font-size:.8rem">daftar dengan email aktif</div></div><div><b class="mono" style="font-size:1.45rem">${wk}</b><div class="muted" style="font-size:.8rem">7 hari terakhir</div></div><div><b class="mono" style="font-size:1.45rem">${ms.filter(m=>m.source==="sheet").length}</b><div class="muted" style="font-size:.8rem">dari Google Sheets</div></div></div>
+    <section class="card" id="sec-daftar"><div class="card-h"><h2>Pendaftaran &amp; login</h2><div class="row" style="gap:6px"><button class="btn sm primary" data-act="sheet">${I.sheet}Sumber data</button><button class="btn sm" data-act="admins">${I.users}Kelola admin</button></div></div><div class="card-b">${syncStatusHTML()}
+      <div class="row" style="gap:28px"><div><b class="mono" style="font-size:1.45rem">${acc.length}</b><div class="muted" style="font-size:.8rem">daftar dengan email aktif</div></div><div><b class="mono" style="font-size:1.45rem">${wk}</b><div class="muted" style="font-size:.8rem">7 hari terakhir</div></div><div><b class="mono" style="font-size:1.45rem">${ms.filter(m=>m.source==="form"||m.source==="sheet").length}</b><div class="muted" style="font-size:.8rem">dari Google Form</div></div></div>
       ${acc.length?`<div class="dlist">${acc.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,5).map(m=>`<div class="ditem" data-act="selm" data-m="${m.id}" style="cursor:pointer">${av(m,"sm")}<div><div class="t">${esc(m.name)}</div><div class="s">${esc(m.email||"")} · ${m.createdAt?stampT(m.createdAt):""}</div></div>${pill(MSTAT,m.status)}</div>`).join("")}</div>`:`<p class="muted">Belum ada yang mendaftar. Bagikan tautan halaman ini; anggota masuk dengan akun yang memakai email aktif, lalu mengisi formulir pendaftaran.</p>`}
-      ${dupNotice()}${S.mcp?syncStatusHTML():""}</div></section>
+      ${dupNotice()}</div></section>
     <section class="card"><div class="card-h"><h2>Alert terbuka</h2><a class="btn sm" href="#alert">Semua alert</a></div><div class="card-b">${open.length?`<div class="alerts">${open.slice(0,4).map(a=>alertCard(a)).join("")}</div>`:`<p class="muted">Tidak ada alert terbuka.</p><div><button class="btn primary sm" data-act="new-alert">${I.plus}Buat alert</button></div>`}</div></section>
   </div>
   <div class="grid2">
@@ -788,7 +795,7 @@ function alertCard(a,sel){
   const cs=cands(a),inv=cs.length,yes=cs.filter(c=>isYes(c.state)).length,chosen=cs.filter(c=>c.state==="terpilih").length;
   const left=daysBetween(today(),a.deadline);
   const dl=a.status!=="terbuka"?"":left<0?`<span class="deadline" style="color:var(--muted)">Batas konfirmasi lewat</span>`:`<span class="deadline" style="color:${left<=2?"var(--red)":"var(--warn)"}">${left===0?"Batas konfirmasi hari ini":"Sisa "+left+" hari konfirmasi"}</span>`;
-  return `<button class="acard ${a.status==="ditutup"?"closed":a.status==="terisi"?"filled":""} ${sel?"sel":""}" data-act="sela" data-a="${a.id}"><div style="min-width:0;display:flex;flex-direction:column;gap:5px"><div class="row" style="gap:8px"><span class="code-t">${esc(a.code)}</span>${pill(ASTAT,a.status)}${sampleTag(a)}<span class="pill teal">${esc(a.emergency||"")}</span></div><h3>${esc(a.role)} — ${esc(a.title)}</h3><div class="meta"><span>${I.pin}${esc(a.location)}</span><span>${I.cal}${fmt(a.start)}</span><span>${I.clock}${a.dur} hari</span></div>${dl}</div>
+  return `<button class="acard ${a.status==="ditutup"?"closed":a.status==="terisi"?"filled":""} ${sel?"sel":""}" data-act="sela" data-a="${a.id}"><div style="min-width:0;display:flex;flex-direction:column;gap:5px"><div class="row" style="gap:8px"><span class="code-t">${esc(a.code)}</span>${pill(ASTAT,a.status)}${sampleTag(a)}<span class="pill ${kindOf(a)==="bencana"?"red":"teal"}">${KINDS[kindOf(a)]}</span><span class="pill teal">${esc(a.emergency||"")}</span></div><h3>${esc(a.role)} — ${esc(a.title)}</h3><div class="meta"><span>${I.pin}${esc(a.location)}</span><span>${I.cal}${fmt(a.start)}</span><span>${I.clock}${a.dur} hari</span></div>${dl}</div>
     <div class="funnel"><div><b>${inv}</b><span>Kandidat</span></div><div><b>${yes}</b><span>Bersedia</span></div><div><b style="color:var(--red)">${chosen}/${a.slots||1}</b><span>Terpilih</span></div></div></button>`}
 function alertInspector(a){
   if(!a)return ihint("Pilih alert di daftar untuk melihat ringkasan, lalu buka seleksi kandidat.");
@@ -797,7 +804,7 @@ function alertInspector(a){
     <a class="btn primary" href="#seleksi-${a.id}">${I.check}Buka seleksi kandidat</a>
     <button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.mail}Kirim alert lewat email ke semua anggota</button>${bcHistory(a.id)}
     <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-alert" data-a="${a.id}">${I.edit}Ubah</button>${a.status==="terbuka"?`<button class="btn sm" data-act="astatus" data-v="ditutup" data-a="${a.id}">Tutup alert</button>`:`<button class="btn sm" data-act="astatus" data-v="terbuka" data-a="${a.id}">Buka kembali</button>`}<button class="btn sm ghost danger" data-act="del-alert" data-a="${a.id}">Hapus</button></div></div>
-   <div class="isec"><span class="lbl-up">Penugasan</span><dl class="kv"><dt>Jenis bencana</dt><dd>${esc(a.emergency||"-")}</dd><dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Mulai</dt><dd>${fmtLong(a.start)}</dd><dt>Selesai</dt><dd>${fmtLong(endOf(a))}</dd><dt>Durasi</dt><dd>${a.dur} hari</dd><dt>Batas konfirmasi</dt><dd>${fmtLong(a.deadline)}</dd><dt>Kebutuhan</dt><dd>${a.slots||1} orang</dd></dl>${a.desc?`<p class="muted" style="font-size:.86rem;white-space:pre-line">${esc(a.desc)}</p>`:""}</div>
+   <div class="isec"><span class="lbl-up">Penugasan</span><dl class="kv"><dt>Jenis penugasan</dt><dd>${KINDS[kindOf(a)]}</dd><dt>${subLabel(a)}</dt><dd>${esc(a.emergency||"-")}</dd><dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Mulai</dt><dd>${fmtLong(a.start)}</dd><dt>Selesai</dt><dd>${fmtLong(endOf(a))}</dd><dt>Durasi</dt><dd>${a.dur} hari</dd><dt>Batas konfirmasi</dt><dd>${fmtLong(a.deadline)}</dd><dt>Kebutuhan</dt><dd>${a.slots||1} orang</dd></dl>${a.desc?`<p class="muted" style="font-size:.86rem;white-space:pre-line">${esc(a.desc)}</p>`:""}</div>
    <div class="isec"><span class="lbl-up">Kandidat</span><dl class="kv"><dt>Diundang</dt><dd>${n("diundang")}</dd><dt>Mengajukan diri</dt><dd>${n("mengajukan")}</dd><dt>Bersedia</dt><dd>${n("bersedia")}</dd><dt>Menolak</dt><dd>${n("menolak")}</dd><dt>Terpilih</dt><dd>${n("terpilih")} / ${a.slots||1}</dd></dl></div>`}
 function vAlertTab(){
   const as=alerts(),cnt=k=>as.filter(a=>k==="semua"||a.status===k).length,f=S.af;
@@ -813,26 +820,56 @@ function vAlertTab(){
   return {l,c,r:alertInspector(sel)}}
 
 /* ---- tab 3: selection ---- */
+const ROLE_FAM=[["Suplai Air Bersih","Kualitas Air","Operator Unit Pengolahan Air"],["Sanitasi & Limbah","Promosi Kebersihan","Pengendalian Vektor"]];
+const KW={bencana:["wash","watsan","mtdb","satgana","tanggap darurat","tdb","asesmen","assessment","kaji cepat","surge","eru","operator","teknisi","wtu","pengolahan air","water treatment","sanitasi darurat","pengungsian","bencana","respon","logistik","sar","pertolongan pertama","ksr"],
+  non_bencana:["tot","tof","fasilitator","pelatih","trainer","narasumber","instruktur","sertifikasi","bnsp","asesor","phast","chast","modul","kurikulum","workshop","pelatihan","mengajar","guru","dosen","penyuluh","promosi kesehatan","pbi","sibat"]};
+const kwHit=(txt,k)=>k.length<=4?new RegExp("(^|[^a-z])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"([^a-z]|$)").test(txt):txt.includes(k);
+function relevance(m,a){
+  let sc=0;const why=[],kind=kindOf(a);
+  if(m.role===a.role){sc+=40;why.push("Profil cocok")}
+  else if(m.role==="Koordinator WASH"||a.role==="Koordinator WASH"||ROLE_FAM.some(f=>f.includes(m.role)&&f.includes(a.role))){sc+=18;why.push("Profil terkait")}
+  const mine=(a.cand||{})[m.id];
+  if(m.status==="tersedia"){sc+=15;why.push("Tersedia")}
+  else if(m.status==="ditugaskan"&&!(mine&&mine.state==="terpilih")){sc-=40;why.push("Sedang bertugas")}
+  else if(m.status==="tidak"){sc-=25;why.push("Tidak tersedia")}
+  const txt=((m.skills||"")+" "+(m.lang||"")+" "+(m.chapter||"")).toLowerCase();
+  const hits=KW[kind].filter(k=>kwHit(txt,k));
+  if(hits.length){sc+=Math.min(20,hits.length*5);why.push((kind==="bencana"?"Keahlian: ":"Fasilitasi: ")+hits.slice(0,3).join(", "))}
+  const sub=(a.emergency||"").toLowerCase().split(/[\/ ]/)[0];if(sub&&sub.length>3&&sub!=="lainnya"&&txt.includes(sub)){sc+=5;why.push("Pernah "+a.emergency.toLowerCase())}
+  let same=0,other=0;alerts().forEach(x=>{if(x.id===a.id)return;const c=(x.cand||{})[m.id];if(c&&c.state==="terpilih"&&x.start<=today()){kindOf(x)===kind?same++:other++}});
+  if(same||other){sc+=Math.min(15,same*5+other*2);why.push(`Pengalaman ${same+other}× penugasan`)}
+  const prov=(m.province||"").toLowerCase().replace(/^(provinsi|prov\.?)\s+/,"").trim();
+  if(prov&&(a.location||"").toLowerCase().includes(prov)){sc+=kind==="bencana"?10:6;why.push("Provinsi sama")}
+  if(m.level==="Team Leader"&&(a.role==="Koordinator WASH"||kind==="non_bencana")){sc+=8;why.push("Team Leader")}
+  else if(m.level==="Staf PMI"&&kind==="non_bencana"){sc+=4}
+  if(mine&&mine.self&&(mine.state==="mengajukan"||mine.state==="bersedia")){sc+=5;why.push("Mengajukan diri")}
+  return {score:Math.max(0,Math.min(100,sc)),why}}
+const scoreBadge=r=>`<span class="score ${r.score>=60?"hi":r.score>=35?"mid":"lo"}" title="Skor kecocokan: ${r.why.map(esc).join(" · ")}">${r.score}</span>`;
 function inviteList(a){
-  const inv=S.inv,q=inv.q.trim().toLowerCase(),taken=new Set(cands(a).map(c=>c.mid));
-  const pool=members().filter(m=>!taken.has(m.id)).filter(m=>(!inv.roleOnly||m.role===a.role)&&(!inv.availOnly||m.status==="tersedia")&&(!q||(m.name+" "+m.province+" "+m.skills).toLowerCase().includes(q))).sort((x,y)=>(y.role===a.role)-(x.role===a.role)||x.name.localeCompare(y.name));
+  const inv=S.inv;
+  const pool=invitePool(a);
   if(!pool.length)return `<p class="muted" style="padding:12px">Tidak ada anggota yang cocok dengan filter ini.</p>`;
-  return pool.map(m=>`<label><input type="checkbox" data-sel="${m.id}" ${inv.sel.has(m.id)?"checked":""}>${av(m,"sm")}<span class="grow"><b>${esc(m.name)}</b>${sampleTag(m)}<br><small class="muted">${esc(m.role)} · ${esc(m.province||"-")}</small></span>${m.role===a.role?'<span class="match">Profil cocok</span>':""}${pill(MSTAT,m.status)}</label>`).join("")}
+  return pool.map(({m,r},i)=>`<label><input type="checkbox" data-sel="${m.id}" ${inv.sel.has(m.id)?"checked":""}>${scoreBadge(r)}${av(m,"sm")}<span class="grow"><b>${esc(m.name)}</b>${sampleTag(m)}${i<3&&r.score>=35?' <span class="match">Paling cocok</span>':""}<br><small class="muted">${esc(m.role)} · ${esc(m.province||"-")}</small><br><small class="why">${esc(r.why.join(" · ")||"Belum ada kecocokan")}</small></span>${pill(MSTAT,m.status)}</label>`).join("")}
+function invitePool(a){
+  const inv=S.inv,q=inv.q.trim().toLowerCase(),taken=new Set(cands(a).map(c=>c.mid));
+  return members().filter(m=>!taken.has(m.id)).filter(m=>(!inv.roleOnly||m.role===a.role)&&(!inv.availOnly||m.status==="tersedia")&&(!q||(m.name+" "+m.province+" "+m.skills).toLowerCase().includes(q)))
+    .map(m=>({m,r:relevance(m,a)})).sort((x,y)=>y.r.score-x.r.score||x.m.name.localeCompare(y.m.name))}
 function selCenter(a){
   const cs=cands(a).map(c=>Object.assign(c,{m:S.members[c.mid]&&Object.assign({id:c.mid},S.members[c.mid])})).filter(c=>c.m);
-  const order={terpilih:0,bersedia:1,mengajukan:2,diundang:3,menolak:4};cs.sort((x,y)=>order[x.state]-order[y.state]);
+  const grp=st=>st==="terpilih"?0:st==="menolak"?2:1;cs.forEach(c=>{c.rel=relevance(c.m,a)});
+  cs.sort((x,y)=>grp(x.state)-grp(y.state)||y.rel.score-x.rel.score||x.m.name.localeCompare(y.m.name));
   const chosen=cs.filter(c=>c.state==="terpilih").length;
   const rows=cs.map(c=>{const m=c.m,txt=c.state==="terpilih"?selectText(a,m,c):inviteText(a,m),subj=(c.state==="terpilih"?"Penugasan terkonfirmasi: ":"Alert penugasan WASH: ")+a.code+" "+a.role;
-    return `<tr><td><div class="who">${av(m,"sm")}<div><b>${esc(m.name)}</b><small>${esc(m.role)} · ${esc(m.province||"-")}</small></div></div></td><td>${pill(CSTAT,c.state)}${c.self&&c.respAt?`<span class="stamp">Dijawab sendiri ${stampT(c.respAt)}</span>`:""}</td>
+    return `<tr><td><div class="who">${scoreBadge(c.rel)}${av(m,"sm")}<div><b>${esc(m.name)}</b><small>${esc(m.role)} · ${esc(m.province||"-")}</small><small class="why">${esc(c.rel.why.join(" · "))}</small></div></div></td><td>${pill(CSTAT,c.state)}${c.self&&c.respAt?`<span class="stamp">Dijawab sendiri ${stampT(c.respAt)}</span>`:""}</td>
     <td><div class="row" style="gap:6px;flex-wrap:nowrap">${m.email?`<a class="btn sm" target="_blank" rel="noopener" href="${esc(mailHref(m.email,subj,txt))}" data-act="sent" data-ch="email" data-a="${a.id}" data-m="${m.id}">${I.mail}Email</a>`:""}${m.phone?`<a class="btn sm wa" target="_blank" rel="noopener" href="${esc(waHref(m.phone,txt))}" data-act="sent" data-ch="wa" data-a="${a.id}" data-m="${m.id}">${I.wa}WA</a>`:""}<button class="btn sm ghost" data-act="copymsg" data-a="${a.id}" data-m="${m.id}" title="Salin pesan" aria-label="Salin pesan">${I.copy}</button></div>${c.emailAt?`<span class="stamp">Draf email dibuka ${stampT(c.emailAt)}</span>`:""}${c.waAt?`<span class="stamp">Chat WhatsApp dibuka ${stampT(c.waAt)}</span>`:""}</td>
     <td><div class="row" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap">${c.state==="terpilih"?`<button class="btn sm primary" data-act="card" data-a="${a.id}" data-m="${m.id}">${I.id}Kartu ID</button><button class="btn sm ghost" data-act="unselect" data-a="${a.id}" data-m="${m.id}">Batalkan</button>`:
       `${c.state!=="bersedia"?`<button class="btn sm" data-act="cstate" data-v="bersedia" data-a="${a.id}" data-m="${m.id}">Bersedia</button>`:""}${c.state!=="menolak"?`<button class="btn sm" data-act="cstate" data-v="menolak" data-a="${a.id}" data-m="${m.id}">Menolak</button>`:""}<button class="btn sm alert" data-act="select" data-a="${a.id}" data-m="${m.id}" ${c.state==="menolak"||m.status==="ditugaskan"?"disabled":""} title="${m.status==="ditugaskan"?"Sedang bertugas di penugasan lain":"Pilih dan terbitkan kartu"}">Pilih</button>`}${(a.cand||{})[m.id]?`<button class="btn sm ghost danger" data-act="uncand" data-a="${a.id}" data-m="${m.id}" title="Keluarkan dari daftar" aria-label="Keluarkan">${I.x}</button>`:""}</div></td></tr>`}).join("");
-  return `<div class="dhead"><div class="row" style="gap:8px"><span class="mono muted">${esc(a.code)}</span>${pill(ASTAT,a.status)}${sampleTag(a)}<span class="pill teal">${esc(a.emergency||"")}</span></div><h1>${esc(a.role)} — ${esc(a.title)}</h1></div>
+  return `<div class="dhead"><div class="row" style="gap:8px"><span class="mono muted">${esc(a.code)}</span>${pill(ASTAT,a.status)}${sampleTag(a)}<span class="pill ${kindOf(a)==="bencana"?"red":"teal"}">${KINDS[kindOf(a)]}</span><span class="pill teal">${esc(a.emergency||"")}</span></div><h1>${esc(a.role)} — ${esc(a.title)}</h1></div>
   <dl class="facts"><div><dt>Lokasi</dt><dd>${esc(a.location)}</dd></div><div><dt>Periode</dt><dd>${fmt(a.start)} – ${fmt(endOf(a))}</dd></div><div><dt>Durasi</dt><dd>${a.dur} hari</dd></div><div><dt>Batas konfirmasi</dt><dd>${fmt(a.deadline)}</dd></div></dl>
-  <div class="card"><div class="card-h"><div><h2>Kandidat <span class="mono muted" style="font-size:.95rem">${chosen}/${a.slots||1} terpilih</span></h2><p class="muted" style="font-size:.84rem;margin-top:2px">Tombol Email dan WA membuka pesan yang sudah terisi. Pesan terkirim setelah Anda menekan kirim di aplikasi tersebut.</p></div></div>
+  <div class="card"><div class="card-h"><div><h2>Kandidat <span class="mono muted" style="font-size:.95rem">${chosen}/${a.slots||1} terpilih</span></h2><p class="muted" style="font-size:.84rem;margin-top:2px">Diurutkan dari yang paling cocok dengan jenis penugasan (skor 0–100: profil, ketersediaan, keahlian, pengalaman, provinsi). Tombol Email dan WA membuka pesan yang sudah terisi. Pesan terkirim setelah Anda menekan kirim di aplikasi tersebut.</p></div></div>
     ${cs.length?`<div class="tablewrap"><table class="dt"><thead><tr><th>Anggota</th><th>Status</th><th>Kirim alert</th><th style="text-align:right">Keputusan</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="card-b"><p class="muted">Belum ada kandidat. Undang anggota di bawah, atau tunggu relawan mengajukan diri dari portal mereka.</p></div>`}</div>
-  ${a.status==="terbuka"?`<div class="card"><div class="card-h"><div><h2>Undang anggota roster</h2><p class="muted" style="font-size:.84rem;margin-top:2px">Centang anggota lalu masukkan ke daftar kandidat. Setelah itu kirim alert lewat Email atau WA di tabel atas.</p></div></div><div class="card-b">
-    <div class="toolbar"><label class="search">${I.search}<input id="invq" placeholder="Cari anggota…" value="${esc(S.inv.q)}" aria-label="Cari anggota untuk diundang"></label><label class="toggle"><input type="checkbox" id="invrole" ${S.inv.roleOnly?"checked":""}>Hanya profil ${esc(a.role)}</label><label class="toggle"><input type="checkbox" id="invavail" ${S.inv.availOnly?"checked":""}>Hanya yang tersedia</label></div>
+  ${a.status==="terbuka"?`<div class="card"><div class="card-h"><div><h2>Undang anggota roster</h2><p class="muted" style="font-size:.84rem;margin-top:2px">Anggota paling cocok ada di atas. Centang anggota lalu masukkan ke daftar kandidat. Setelah itu kirim alert lewat Email atau WA di tabel atas.</p></div></div><div class="card-b">
+    <div class="toolbar"><label class="search">${I.search}<input id="invq" placeholder="Cari anggota…" value="${esc(S.inv.q)}" aria-label="Cari anggota untuk diundang"></label><label class="toggle"><input type="checkbox" id="invrole" ${S.inv.roleOnly?"checked":""}>Hanya profil ${esc(a.role)}</label><label class="toggle"><input type="checkbox" id="invavail" ${S.inv.availOnly?"checked":""}>Hanya yang tersedia</label><button class="btn sm" data-act="inv-top" data-a="${a.id}">${I.check}Centang 10 teratas</button></div>
     <div class="pick" id="pick">${inviteList(a)}</div>
     <div class="spread"><span class="muted" id="selcount">${S.inv.sel.size} dipilih</span><button class="btn primary" data-act="invite" data-a="${a.id}" ${S.inv.sel.size?"":"disabled"} id="invbtn">Masukkan ke daftar kandidat</button></div></div></div>`:""}`}
 function selInspector(a){
@@ -1165,10 +1202,11 @@ function exportRoster(){saveXlsx(`roster-wash-${today()}.xlsx`,[["Roster",member
 function templateXlsx(){saveXlsx("template-roster-wash.xlsx",[["Roster",[FIELDS.map(f=>f[1]),["Nama Relawan Contoh","081234567890","relawan@contoh.id","Promosi Kebersihan","Relawan (KSR/TSR)","Jawa Tengah","PMI Kota Semarang","PHAST, CHAST","Indonesia","Tersedia"]]],["Pilihan",[["Profil WASH","Kategori","Status"],...ROLES.map((r,i)=>[r,LEVELS[i]||"",["Tersedia","Tidak tersedia"][i]||""])]]])}
 
 function alertForm(a){
-  const t=today();a=a||{role:ROLES[0],emergency:EMERG[0],start:addDays(t,3),dur:14,deadline:addDays(t,1),slots:1};
+  const t=today();a=a||{kind:"bencana",role:ROLES[0],emergency:EMERG[0],start:addDays(t,3),dur:14,deadline:addDays(t,1),slots:1};const k=kindOf(a),subs=k==="bencana"?EMERG:NONB;
   openModal(a.id?"Ubah alert":"Buat alert penugasan",`<form class="form" id="aform" novalidate>
-    <div class="field full"><label for="atitle">Nama operasi</label><input class="input" id="atitle" placeholder="mis. Tanggap Darurat Banjir Demak" value="${esc(a.title||"")}"></div>
-    <div class="field"><label for="aemerg">Jenis bencana</label><select class="input" id="aemerg">${EMERG.map(r=>`<option ${a.emergency===r?"selected":""}>${r}</option>`).join("")}</select></div>
+    <div class="field full"><label for="atitle">Nama operasi</label><input class="input" id="atitle" placeholder="mis. Tanggap Darurat Banjir Demak / Pelatihan WASH Kab. Sikka" value="${esc(a.title||"")}"></div>
+    <div class="field"><label for="akind">Jenis penugasan</label><select class="input" id="akind">${Object.entries(KINDS).map(([v,l])=>`<option value="${v}" ${k===v?"selected":""}>${l}</option>`).join("")}</select><span class="hint">Non bencana: pelatihan, workshop, simulasi, dll.</span></div>
+    <div class="field"><label for="aemerg" id="aemergl">${subLabel(a)}</label><select class="input" id="aemerg">${subs.concat(subs.includes(a.emergency)||!a.emergency?[]:[a.emergency]).map(r=>`<option ${a.emergency===r?"selected":""}>${esc(r)}</option>`).join("")}</select></div>
     <div class="field"><label for="arole">Posisi yang dibutuhkan</label><select class="input" id="arole">${ROLES.map(r=>`<option ${a.role===r?"selected":""}>${esc(r)}</option>`).join("")}</select></div>
     <div class="field full"><label for="aloc">Lokasi penugasan</label><input class="input" id="aloc" placeholder="Kecamatan, Kabupaten, Provinsi" value="${esc(a.location||"")}"></div>
     <div class="field"><label for="astart">Tanggal mulai</label><input class="input" id="astart" type="date" value="${esc(a.start)}"></div>
@@ -1181,7 +1219,7 @@ function alertForm(a){
 }
 async function saveAlert(id){
   const v=k=>($("#"+k).value||"").trim();
-  const f={title:v("atitle"),emergency:v("aemerg"),role:v("arole"),location:v("aloc"),start:v("astart"),dur:Math.max(1,parseInt(v("adur"))||1),deadline:v("adead"),slots:Math.max(1,parseInt(v("aslots"))||1),desc:v("adesc")};
+  const f={kind:v("akind")==="non_bencana"?"non_bencana":"bencana",title:v("atitle"),emergency:v("aemerg"),role:v("arole"),location:v("aloc"),start:v("astart"),dur:Math.max(1,parseInt(v("adur"))||1),deadline:v("adead"),slots:Math.max(1,parseInt(v("aslots"))||1),desc:v("adesc")};
   const err=$("#aerr");
   if(!f.title||!f.location||!f.start||!f.deadline){err.textContent="Isi nama operasi, lokasi, tanggal mulai, dan batas konfirmasi.";err.hidden=false;return}
   if(f.deadline>f.start){err.textContent="Batas konfirmasi harus sebelum atau sama dengan tanggal mulai.";err.hidden=false;return}
@@ -1355,6 +1393,7 @@ document.addEventListener("click",async e=>{
     case"af":S.af=b.dataset.v;render();break;
     case"seed":seed();break;
     case"unseed":if(arm(b,"us","Tekan lagi untuk menghapus"))unseed();break;
+    case"inv-top":{const a=S.alerts[aid]&&Object.assign({id:aid},S.alerts[aid]);if(!a)break;const top=invitePool(a).filter(x=>x.r.score>0).slice(0,10);top.forEach(x=>S.inv.sel.add(x.m.id));render();toast(top.length?top.length+" anggota paling cocok dicentang. Tekan Masukkan ke daftar kandidat.":"Tidak ada anggota yang cocok.");break}
     case"invite":{const add={};S.inv.sel.forEach(id=>add[id]={state:"diundang",invitedAt:Date.now()});const n=S.inv.sel.size;S.inv.sel.clear();await write("update","alerts",aid,{cand:add}).catch(()=>{});toast(n+" anggota masuk daftar kandidat. Kirim alert lewat tombol Email/WhatsApp.");break}
     case"sent":{const k=b.dataset.ch==="wa"?"waAt":"emailAt";write("update","alerts",aid,{cand:{[mid]:{[k]:Date.now()}}}).catch(()=>{});break}
     case"copymsg":{const m=S.members[mid],c=a.cand[mid];copy(c.state==="terpilih"?selectText(a,m,c):inviteText(a,m),"Pesan");break}
@@ -1386,6 +1425,7 @@ document.addEventListener("change",e=>{
   if(t.id==="fprov"){S.f.prov=t.value;render()}
   else if(t.id==="fstat"){S.f.status=t.value;render()}
   else if(t.id==="invrole"){S.inv.roleOnly=t.checked;render()}
+  else if(t.id==="akind"){const subs=t.value==="non_bencana"?NONB:EMERG;$("#aemerg").innerHTML=subs.map(r=>`<option>${esc(r)}</option>`).join("");$("#aemergl").textContent=t.value==="non_bencana"?"Jenis kegiatan":"Jenis bencana"}
   else if(t.id==="invavail"){S.inv.availOnly=t.checked;render()}
   else if(t.id==="mfile"){const f=t.files[0];if(!f)return;resizePhoto(f).then(d=>{S.pendingPhoto=d;$("#mphoto").innerHTML=`<img class="av lg" src="${d}" alt="">`}).catch(()=>toast("Foto tidak bisa dibaca. Coba file JPG atau PNG."))}
   else if(t.id==="impfile"){const f=t.files[0];if(f)handleFile(f)}

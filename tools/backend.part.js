@@ -4,7 +4,7 @@
 const isoT=t=>t?new Date(t).toISOString():null;
 const msT=t=>t?Date.parse(t):null;
 const MCOLS={name:"name",email:"email",mis:"mis",phone:"phone",role:"role",level:"level",province:"province",chapter:"chapter",skills:"skills",lang:"lang",status:"status",photo:"photo",source:"source",sheetSig:"sheet_sig"};
-const ACOLS={code:"code",title:"title",emergency:"emergency",role:"role",location:"location",start:"start_date",dur:"dur",deadline:"deadline",slots:"slots",desc:"description",status:"status"};
+const ACOLS={code:"code",title:"title",emergency:"emergency",role:"role",location:"location",start:"start_date",dur:"dur",deadline:"deadline",slots:"slots",desc:"description",status:"status",kind:"kind"};
 function memberRow(d){const o={};for(const k in MCOLS)if(d[k]!==undefined)o[MCOLS[k]]=d[k]==null?"":d[k];if(o.sheet_sig==="")o.sheet_sig=null;if(o.email!==undefined)o.email=String(o.email||"").toLowerCase()||null;return o}
 function alertRow(d){const o={};for(const k in ACOLS)if(d[k]!==undefined)o[ACOLS[k]]=d[k];if(d.announce!==undefined){o.announce_at=d.announce&&d.announce.at?isoT(d.announce.at):null;o.announce_note=d.announce&&d.announce.note||""}return o}
 function candRow(c){const o={};if(c.state!==undefined)o.state=c.state;if(c.self!==undefined)o.self_response=!!c.self;
@@ -65,12 +65,13 @@ async function loadAll(){
   m.forEach(x=>{members[x.id]={name:x.name,email:x.email||"",phone:x.phone,role:x.role,level:x.level,province:x.province,chapter:x.chapter,skills:x.skills,lang:x.lang,mis:x.mis||"",status:x.status,photo:x.photo,source:x.source,account:!!x.user_id,hasPassword:!!x.has_password,sheetSig:x.sheet_sig,createdAt:msT(x.created_at),reports:{}};if(x.user_id===me)myId=x.id});
   r.forEach(x=>{const mm=members[x.member_id];if(mm)mm.reports[x.alert_id]={summary:x.summary,metrics:x.metrics||{},cond:x.cond,issues:x.issues,recs:x.recs,seen:x.seen,at:msT(x.submitted_at)}});
   const alerts={};
-  a.forEach(x=>{alerts[x.id]={code:x.code,title:x.title,emergency:x.emergency,role:x.role,location:x.location,start:x.start_date,dur:x.dur,deadline:x.deadline,slots:x.slots,desc:x.description,status:x.status,createdAt:msT(x.created_at),announce:x.announce_at?{at:msT(x.announce_at),note:x.announce_note}:null,cand:{}}});
+  a.forEach(x=>{alerts[x.id]={kind:x.kind||"bencana",code:x.code,title:x.title,emergency:x.emergency,role:x.role,location:x.location,start:x.start_date,dur:x.dur,deadline:x.deadline,slots:x.slots,desc:x.description,status:x.status,createdAt:msT(x.created_at),announce:x.announce_at?{at:msT(x.announce_at),note:x.announce_note}:null,cand:{}}});
   c.forEach(x=>{const al=alerts[x.alert_id];if(!al)return;al.cand[x.member_id]={state:x.state,self:x.self_response,respAt:x.self_response?msT(x.answered_at):null,answeredAt:x.self_response?null:msT(x.answered_at),invitedAt:msT(x.invited_at),emailAt:msT(x.email_at),waAt:msT(x.wa_at),cardNo:x.card_no||"",selectedAt:msT(x.selected_at),name:x.name||"",thumb:x.thumb||""}});
   S.members=members;S.alerts=alerts;
   const app=s.find(x=>x.key==="app"),sh=s.find(x=>x.key==="sheet");
   const ik=s.find(x=>x.key==="intake");
   S.settings={app:app?app.value:{}};S.sync=sh?sh.value:null;S.intake=ik?ik.value:null;
+  const ss=s.find(x=>x.key==="sheet_source");S.sheetSource=ss?ss.value:null;
   S.uid=myId||"me";S.mcp=S.isAdmin?{}:null;
   S.meProfile={email:(S.session.user.email||"").toLowerCase(),name:""};
   S.loaded=true;S.loadErr=false;render();
@@ -396,4 +397,58 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]
   else if(a==="rsel-all"){S.rsel=S.rsel||new Set();const ids=filteredMembers().map(m=>m.id);if(b.checked)ids.forEach(id=>S.rsel.add(id));else ids.forEach(id=>S.rsel.delete(id));const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
   else if(a==="rsel-clear"){S.rsel.clear();const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
   else if(a==="rsel-del"){if(!arm(b,"rdel","Tekan lagi: hapus permanen"))return;const ids=[...S.rsel];S.suspend=true;let ok=0;for(const id of ids){try{await write("delete","members",id);ok++}catch(err){}}S.suspend=false;S.rsel.clear();if(ids.includes(S.selMember))S.selMember=null;toast(ok+" anggota dihapus");await loadAll()}
+},true);
+
+/* ---------- sumber data: spreadsheet jawaban Google Form (sinkron di server tiap 5 menit) ---------- */
+async function srcCall(body){
+  const {data:{session}}=await sb.auth.getSession();
+  try{const r=await fetch(SB_URL+"/functions/v1/sheet-sync",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+((session&&session.access_token)||SB_KEY)},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));return Object.assign({httpOk:r.ok,http:r.status},j)}
+  catch(e){return {httpOk:false,error:"Tidak bisa menghubungi server. Periksa koneksi."}}}
+function srcResultText(l){if(!l)return"";return `${l.new||0} baru, ${(l.updated||0)+(l.filled||0)} diperbarui, ${l.unchanged||0} tetap${l.errors?`, ${l.errors} dilewati`:""}`}
+function syncStatusHTML(){
+  if(!S.isAdmin)return"";
+  const c=S.sheetSource,ik=S.intake||{};
+  const form=ik.last_at?`<span class="muted" style="font-size:.78rem">Apps Script Google Form: ${ik.count||0} jawaban, terakhir ${stampT(Date.parse(ik.last_at))}.</span>`:"";
+  if(!c||!c.url)return `<div class="lbox"><b>Sumber data</b><span class="muted">Belum terhubung. Tempel link spreadsheet jawaban Google Form; anggota baru otomatis masuk roster setiap form terisi.</span><button class="btn sm primary" data-act="sheet">${I.sheet}Hubungkan spreadsheet</button>${form}</div>`;
+  const off=c.enabled===false,err=c.last_error;
+  return `<div class="lbox"><div class="spread"><b>Spreadsheet jawaban Form</b>${S.srcBusy?`<span class="pill teal">Menyinkronkan…</span>`:off?`<span class="pill off">Dijeda</span>`:err?`<span class="pill red">Gagal</span>`:`<span class="pill ok">Otomatis</span>`}</div>
+    ${c.last_at?`<span class="muted">Terakhir ${stampT(Date.parse(c.last_at))}${c.last_result?": "+srcResultText(c.last_result):""}</span>`:`<span class="muted">Menunggu sinkron pertama.</span>`}
+    ${err?`<span class="err" style="font-size:.8rem">${esc(err)}</span>`:""}
+    <div class="row" style="gap:6px"><button class="btn sm primary" data-act="sheet-sync" ${S.srcBusy?"disabled":""}>Sinkronkan sekarang</button><button class="btn sm" data-act="sheet">Pengaturan</button></div>
+    <span class="muted" style="font-size:.74rem">Server memeriksa spreadsheet tiap 5 menit, walau aplikasi tidak dibuka.</span>${form}</div>`}
+function sheetModal(){
+  const c=S.sheetSource||{},t=S.srcTest;
+  const prev=t&&t.preview&&t.preview.length?`<div style="overflow-x:auto"><table class="dt" style="font-size:.8rem"><thead><tr><th>Nama</th><th>Email</th><th>WhatsApp</th><th>Profil</th><th>Provinsi</th><th>No. MIS</th></tr></thead><tbody>${t.preview.map(p=>`<tr><td>${esc(p.name||"—")}</td><td>${esc(p.email||"—")}</td><td>${esc(p.phone||"—")}</td><td>${esc(p.role||"(bawaan)")}</td><td>${esc(p.province||"—")}</td><td>${esc(p.mis||"—")}</td></tr>`).join("")}</tbody></table></div>`:"";
+  openModal("Sumber data roster",`<p class="muted">Hubungkan spreadsheet jawaban Google Form pendaftaran. Setiap jawaban baru otomatis menjadi anggota roster (dicocokkan lewat email, jadi tidak ada pendaftaran ganda).</p>
+     <div class="field"><label for="srcurl">Link spreadsheet jawaban</label><input class="input" id="srcurl" placeholder="https://docs.google.com/spreadsheets/d/…/edit#gid=0" value="${esc((t&&t.url)||c.url||"")}"></div>
+     <p class="err" id="srcerr" ${S.srcErr?"":"hidden"}>${esc(S.srcErr||"")}</p>
+     ${t&&t.ok?`<div class="note" style="display:flex;flex-direction:column;gap:6px"><b style="color:var(--ink)">Terbaca: ${t.rows} jawaban · ${t.headers.length} kolom</b>${prev}<span>Kolom dikenali dari judul pertanyaan: nama, email, WhatsApp, provinsi, markas/cabang, profil/bidang, keahlian/pelatihan, No. MIS (SIAMO).</span></div>`:""}
+     <div class="note" style="display:flex;flex-direction:column;gap:5px"><b style="color:var(--ink)">Cara mendapatkan link</b>
+       <span>1. Di Google Form → tab <b>Jawaban</b> → <b>Tautkan ke Spreadsheet</b>.</span>
+       <span>2. Di spreadsheet: <b>Bagikan → Akses umum → Siapa saja yang memiliki link (Pelihat)</b>.</span>
+       <span>3. Salin link dari bilah alamat, tempel di atas, tekan <b>Tes</b>.</span>
+       <span class="muted" style="font-size:.78rem">Siapa pun yang memegang link bisa melihat isinya; bagikan link hanya kepada admin.</span></div>
+     <p class="muted" style="font-size:.8rem">Ingin tanpa membagikan spreadsheet? <button class="btn sm ghost" data-act="gform">Pakai Apps Script Google Form</button></p>`,
+    `${c.url?`<button class="btn ghost danger" data-act="src-off" style="margin-right:auto">Putuskan</button>`:""}<button class="btn" data-act="close">Batal</button><button class="btn" data-act="src-test" ${S.srcBusy?"disabled":""}>${S.srcBusy==="test"?"Membaca…":"Tes"}</button><button class="btn primary" data-act="src-save" ${t&&t.ok&&!S.srcBusy?"":"disabled"}>Simpan &amp; sinkronkan</button>`,true)}
+async function syncSheet(manual){
+  if(!S.isAdmin||S.srcBusy)return;S.srcBusy="run";render();
+  const r=await srcCall({mode:"run"});S.srcBusy=false;
+  if(manual)toast(r.httpOk?(r.skipped?"Belum ada spreadsheet yang dihubungkan.":"Sinkron selesai: "+srcResultText(r)):(r.error||"Sinkron gagal."));
+  await loadAll()}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="sheet"){e.preventDefault();e.stopImmediatePropagation();if(!S.isAdmin){toast("Masuk Mode Admin dulu.");return}S.srcTest=null;S.srcErr="";sheetModal();return}
+  if(a==="src-test"){e.preventDefault();e.stopImmediatePropagation();const url=($("#srcurl").value||"").trim();
+    if(!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(url)){S.srcErr="Link harus link Google Spreadsheet (https://docs.google.com/spreadsheets/…).";S.srcTest=null;sheetModal();return}
+    S.srcBusy="test";S.srcErr="";S.srcTest={url};sheetModal();
+    const r=await srcCall({mode:"test",url});S.srcBusy=false;
+    if(r.httpOk&&r.ok){S.srcTest=Object.assign({url},r);if(!r.rows)S.srcErr="Spreadsheet terbaca, tapi belum ada jawaban.";}else{S.srcTest={url};S.srcErr=r.error||"Spreadsheet tidak bisa dibaca."}
+    sheetModal();return}
+  if(a==="src-save"){e.preventDefault();e.stopImmediatePropagation();const t=S.srcTest;if(!t||!t.ok)return;
+    const v=Object.assign({},S.sheetSource||{},{url:t.url,enabled:true,saved_at:new Date().toISOString()});
+    if(!S.sheetSource||S.sheetSource.url!==t.url){delete v.last_at;delete v.last_result;delete v.last_error}
+    try{await write("set","settings","sheet_source",v);S.sheetSource=v}catch(err){S.srcErr="Gagal menyimpan: "+(err.message||err);sheetModal();return}
+    closeModal();syncSheet(true);return}
+  if(a==="src-off"){e.preventDefault();e.stopImmediatePropagation();if(!arm(b,"srcoff","Tekan lagi untuk memutuskan"))return;closeModal();
+    await write("delete","settings","sheet_source").catch(()=>{});S.sheetSource=null;toast("Spreadsheet diputus. Anggota yang sudah masuk tetap ada.");render();return}
 },true);

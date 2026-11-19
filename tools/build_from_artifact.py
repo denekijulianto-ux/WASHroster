@@ -92,6 +92,12 @@ rep('Data dibaca dengan akun Google Anda lewat konektor Google Sheets, lalu dico
 rep('''case"sheet":if(!S.mcp){toast("Sinkron Google Sheets hanya tersedia saat halaman dibuka lewat claude.ai.");break}''', 'case"sheet":if(!S.isAdmin){toast("Masuk Mode Admin dulu.");break}')
 rep('if(!S.mcp)return compact?"":`<p class="note">Sinkron Google Sheets tersedia saat halaman dibuka lewat claude.ai oleh admin yang sudah menghubungkan konektor Google Sheets.</p>`;', 'if(!S.mcp)return "";')
 
+# server-side spreadsheet sync (Edge Function sheet-sync) replaces the in-browser sync
+rep('function syncStatusHTML(compact){', 'function syncStatusHTMLUnused(compact){')
+rep('function sheetModal(){', 'function sheetModalUnused(){')
+rep('async function syncSheet(manual){', 'async function syncSheetUnused(manual){')
+rep('function startAutoSync(){', 'function startAutoSync(){}\nfunction startAutoSyncUnused(){')
+
 # mode switch: admin account without password session -> password prompt
 rep('const memberView=()=>!S.isAdmin||S.viewAs==="anggota";', 'const memberView=()=>!S.isAdmin||S.viewAs==="anggota";')
 rep('''$("#hright").innerHTML=(S.isAdmin?`<div class="seg"''', '''$("#hright").innerHTML=(S.isAdminAcct?`<div class="seg"''')
