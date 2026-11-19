@@ -60,7 +60,7 @@ const OUT = process.argv[2] || "/tmp";
   await p.evaluate(() => { const m = document.querySelector("#modal .modal-b, #modal .mb, #modal [class*=body]") || document.querySelector("#modal"); const el = document.querySelector("#mchapk"); el && el.scrollIntoView({ block: "center" }); }); await shot("10b-profile-origin");
   await p.click("#modal [data-act=close]");
   // 11. WhatsApp group
-  await top("#m-wag", 120); await shot("11-wagroup");
+  await top("#washpedia", 90); await shot("11-wagroup");
   // 12. bottom nav / logout
   await p.evaluate(() => window.scrollTo(0, 0)); await shot("12-top");
   await b.close();

@@ -128,8 +128,15 @@ const THEME = {
 
   s = content("Kenali Beranda anggota", "Beranda & profil");
   phone(s, "04-home", 0.9, 1.45, 5.3, "Beranda anggota");
-  const parts = [["Profil singkat", "Nama, profil WASH, markas, No. MIS, email dan WA."], ["Status ketersediaan", "Tersedia atau tidak — atur dengan tombol Tandai tidak tersedia."], ["Grup WhatsApp", "Tombol Gabung grup untuk menerima alert & pengumuman."], ["Menu bawah", "Beranda · Info · Alert · Tugas · Kartu · Laporan: lompat ke bagian itu."]];
+  const parts = [["Profil singkat", "Nama, profil WASH, markas, No. MIS, email dan WA."], ["Status ketersediaan", "Tersedia atau tidak — atur dengan tombol Tandai tidak tersedia."], ["WASHPEDIA & grup WhatsApp", "Tepat di bawah profil: pusat informasi WASH PMI dan tombol Gabung grup."], ["Menu bawah", "Beranda · Info · Alert · Tugas · Kartu · Laporan: lompat ke bagian itu."]];
   parts.forEach(([h, d], i) => step(s, i + 1, h, d, 4.4, 1.65 + i * 1.25, 8.3));
+
+  s = content("WASHPEDIA dan grup WhatsApp Roster", "Beranda & profil");
+  phone(s, "11-wagroup", 9.4, 1.45, 5.3, "WASHPEDIA dan grup WhatsApp");
+  step(s, 1, "Buka WASHPEDIA", "Banner biru di Beranda (juga di halaman Masuk). Pusat informasi tentang WASH PMI — terbuka di tab baru.", 0.6, 1.75, 7.6);
+  step(s, 2, "Gabung grup WhatsApp Roster WASH", "Tekan Gabung grup. Alert penugasan dan pengumuman hasil seleksi juga dikirim ke grup ini.", 0.6, 3.05, 7.6);
+  step(s, 3, "Pastikan email aktif", "Alert dan pengumuman juga dikirim lewat email. Cek folder Spam/Promosi bila tidak masuk.", 0.6, 4.35, 7.6);
+  tip(s, "WASHPEDIA bisa dibuka tanpa login: link langsung bit.ly/WASHPEDIA2026", 0.6, 5.6, 7.6, 0.85);
 
   s = content("Lengkapi profil agar mudah terpilih", "Beranda & profil");
   phone(s, "10b-profile-origin", 9.4, 1.45, 5.3, "Ubah profil");
@@ -150,7 +157,7 @@ const THEME = {
     s.addText(h, { x: x + 0.35, y: 2.0, w: 2.2, h: 0.55, fontSize: 18, bold: true, color: C.background1, align: "center", valign: "middle", margin: 0, isTextBox: true, objectName: "Teks label " + h });
     s.addText([{ text: ex, options: { bold: true, fontSize: 18, color: C.text1, breakLine: true } }, { text: pos, options: { fontSize: 16, color: C.accent5 } }], { x: x + 0.35, y: 2.85, w: 5.2, h: 1.7, valign: "top", margin: 0, paraSpaceAfter: 8, isTextBox: true, objectName: "Isi " + h });
   });
-  tip(s, "Admin memilih kandidat yang paling cocok: profil, ketersediaan, keahlian, pengalaman, dan provinsi. Ajukan diri hanya bila Anda benar-benar bisa berangkat.", 0.6, 5.0, 12.1, 0.95);
+  tip(s, "Ajukan diri hanya bila Anda benar-benar bisa berangkat. Cara admin memilih kandidat dijelaskan di bagian 04.", 0.6, 5.0, 12.1, 0.95);
 
   s = content("Ajukan diri pada alert", "Alert penugasan");
   phone(s, "05-alert", 0.9, 1.45, 5.3, "Alert terbuka");
@@ -161,7 +168,52 @@ const THEME = {
   tip(s, "Diundang langsung oleh admin? Jawab dengan Saya bersedia atau Tidak bisa.", 7.6, 5.45, 5.1, 0.95);
 
   // ---------- section 4: after selection ----------
-  divider("04", "Setelah terpilih", "Pengumuman, kartu ID, dan laporan.", "Setelah terpilih");
+  divider("04", "Cara kami memilih kandidat", "Transparan: skor kecocokan membantu, keputusan akhir tetap di tangan admin.", "Seleksi kandidat");
+
+  s = content("Alur seleksi kandidat", "Seleksi kandidat");
+  const sel = [["Alert dibuat", "Admin menentukan jenis penugasan, posisi, lokasi, tanggal, dan jumlah orang."], ["Skor kecocokan dihitung", "Sistem memberi setiap anggota skor 0–100 dari profilnya (lihat kriteria)."], ["Admin meninjau", "Anggota diurutkan dari skor tertinggi, lengkap dengan alasannya. Admin mengundang yang paling cocok."], ["Anggota menjawab", "Anda bisa mengajukan diri sendiri, atau menjawab undangan: bersedia / tidak bisa."], ["Keputusan admin", "Admin memilih dari yang bersedia, dengan mempertimbangkan kebutuhan lapangan dan komposisi tim."], ["Pengumuman", "Nama terpilih diumumkan; kartu ID langsung terbit."]];
+  sel.forEach(([h, d], i) => {
+    const col = i % 3, row = Math.floor(i / 3), x = 0.6 + col * 4.1, y = 1.7 + row * 2.6;
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w: 3.8, h: 2.3, rectRadius: 0.15, fill: { color: i === 4 ? "FDECEE" : THEME.colors.lt2 }, line: { color: i === 4 ? "FDECEE" : THEME.colors.lt2 }, objectName: "Tahap " + (i + 1) });
+    s.addText(String(i + 1), { x: x + 0.3, y: y + 0.2, w: 1, h: 0.7, fontSize: 36, bold: true, color: C.accent1, margin: 0, isTextBox: true, objectName: "Nomor tahap " + (i + 1) });
+    s.addText([{ text: h, options: { bold: true, fontSize: 18, color: C.text1, breakLine: true } }, { text: d, options: { fontSize: 14, color: C.accent5 } }], { x: x + 0.3, y: y + 0.85, w: 3.25, h: 1.35, valign: "top", margin: 0, paraSpaceAfter: 4, isTextBox: true, objectName: "Isi tahap " + (i + 1) });
+  });
+  s.addNotes("Skor kecocokan adalah alat bantu agar admin cepat menemukan anggota yang relevan. Keputusan akhir tetap diambil admin, misalnya untuk menyeimbangkan komposisi tim atau kebutuhan khusus di lapangan.");
+
+  s = content("Kriteria dan bobot skor kecocokan", "Seleksi kandidat");
+  const cats = ["Profil / bidang WASH sama", "Keahlian sesuai posisi (khusus non bencana)", "Keahlian sesuai jenis penugasan", "Status tersedia", "Pengalaman penugasan", "Provinsi sama dengan lokasi", "Level (Team Leader / Staf)", "Pernah menangani jenis ini", "Mengajukan diri sendiri"];
+  s.addChart(pres.charts.BAR, [
+    { name: "Bencana", labels: cats, values: [40, 0, 20, 15, 15, 10, 8, 5, 5] },
+    { name: "Non bencana", labels: cats, values: [25, 30, 20, 15, 15, 6, 8, 5, 5] },
+  ], { x: 0.5, y: 1.45, w: 8.2, h: 5.35, barDir: "bar", barGrouping: "clustered", catAxisOrientation: "maxMin", chartColors: [THEME.colors.accent1, THEME.colors.accent2],
+    showValue: true, dataLabelPosition: "outEnd", dataLabelFontSize: 11, dataLabelColor: THEME.colors.dk1, dataLabelFontFace: "+mn-lt",
+    catAxisLabelFontSize: 12, catAxisLabelColor: THEME.colors.dk1, catAxisLabelFontFace: "+mn-lt", valAxisHidden: true, valGridLine: { style: "none" }, catGridLine: { style: "none" },
+    showLegend: true, legendPos: "t", legendFontSize: 12, legendFontFace: "+mn-lt", legendColor: THEME.colors.dk1,
+    showTitle: true, title: "Poin maksimum per kriteria", titleFontSize: 14, titleColor: THEME.colors.dk1, titleFontFace: "+mn-lt", barGapWidthPct: 60, objectName: "Grafik bobot kriteria" });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 9.0, y: 1.6, w: 3.7, h: 2.55, rectRadius: 0.15, fill: { color: "FDECEE" }, line: { color: "FDECEE" }, objectName: "Kotak pengurang" });
+  s.addText([{ text: "Pengurang skor", options: { bold: true, fontSize: 18, color: C.text1, breakLine: true } }, { text: "Sedang bertugas di penugasan lain: −40", options: { fontSize: 14, color: C.text1, bullet: true, breakLine: true } }, { text: "Menandai diri tidak tersedia: −25", options: { fontSize: 14, color: C.text1, bullet: true, breakLine: true } }, { text: "Peserta pelatihan yang sudah menguasai topiknya: −10", options: { fontSize: 14, color: C.text1, bullet: true } }],
+    { x: 9.25, y: 1.75, w: 3.25, h: 2.3, valign: "top", margin: 0, paraSpaceAfter: 6, isTextBox: true, objectName: "Isi pengurang" });
+  tip(s, "Total dibatasi 0–100. Admin melihat skor dan alasannya, mis. \"Cocok karena profil cocok, tersedia, keahlian: PHAST, provinsi sama.\"", 9.0, 4.4, 3.7, 2.1);
+  s.addNotes("Bobot ini sama dengan yang dipakai aplikasi. Keahlian dibaca dari kolom Keahlian & sertifikasi di profil, jadi tulis pelatihan dan sertifikat Anda dengan jelas.");
+
+  s = content("Penugasan non bencana: cocok per posisi", "Seleksi kandidat");
+  const posm = [["Fasilitator", "TOT/TOF, fasilitator, pelatih, trainer, instruktur, PHAST/CHAST"], ["Narasumber / Pembicara", "Narasumber, pembicara, ahli/pakar, dosen, peneliti"], ["Asesor", "Asesor, BNSP, sertifikasi, penguji"], ["Moderator", "Moderator, MC, pembawa acara, fasilitator"], ["Panitia / Penyelenggara", "Panitia, logistik, administrasi, keuangan, event"], ["Notulis / Dokumentasi", "Notulis, dokumentasi, foto, video, media, humas"]];
+  posm.forEach(([h, d], i) => {
+    const col = i % 2, row = Math.floor(i / 2), x = 0.6 + col * 4.3, y = 1.65 + row * 1.45;
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w: 4.05, h: 1.25, rectRadius: 0.12, fill: { color: THEME.colors.lt2 }, line: { color: THEME.colors.lt2 }, objectName: "Posisi " + h });
+    s.addText([{ text: h, options: { bold: true, fontSize: 16, color: C.text1, breakLine: true } }, { text: d, options: { fontSize: 13, color: C.accent5 } }], { x: x + 0.25, y: y + 0.12, w: 3.6, h: 1.05, valign: "top", margin: 0, paraSpaceAfter: 3, isTextBox: true, objectName: "Kata kunci " + h });
+  });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 9.3, y: 1.65, w: 3.4, h: 4.15, rectRadius: 0.15, fill: { color: C.accent2 }, line: { color: C.accent2 }, objectName: "Kotak peserta" });
+  s.addText([{ text: "Peserta", options: { bold: true, fontSize: 20, color: C.background1, breakLine: true } }, { text: "Relawan (KSR/TSR) diprioritaskan sebagai sasaran pelatihan.", options: { fontSize: 15, color: C.background1, breakLine: true } }, { text: "Anggota yang keahliannya sudah memuat topik pelatihan diturunkan sedikit, agar kesempatan belajar merata.", options: { fontSize: 15, color: C.background1 } }],
+    { x: 9.55, y: 1.85, w: 2.9, h: 3.8, valign: "top", margin: 0, paraSpaceAfter: 10, isTextBox: true, objectName: "Isi peserta" });
+  tip(s, "Kata kunci dicari di kolom Keahlian & sertifikasi. Tiap kata kunci yang cocok menambah 10 poin (maks. 30).", 0.6, 6.05, 12.1, 0.7);
+
+  s = content("Tips agar peluang terpilih lebih besar", "Seleksi kandidat");
+  const tips = [["Tulis keahlian dengan jelas", "Sebut nama pelatihan & sertifikat: PHAST, MTDB, Satgana, TOT, operator WTU, BNSP…"], ["Jaga status ketersediaan", "Tersedia menambah poin. Tandai tidak tersedia hanya saat memang berhalangan."], ["Lengkapi provinsi & asal markas", "Anggota dari provinsi lokasi penugasan mendapat poin tambahan."], ["Ajukan diri sebelum batas konfirmasi", "Pengajuan sendiri menambah poin dan langsung terlihat oleh admin."]];
+  tips.forEach(([h, d], i) => step(s, i + 1, h, d, 0.6 + (i % 2) * 6.2, 1.8 + Math.floor(i / 2) * 1.6, 5.8));
+  tip(s, "Pengalaman ikut dihitung: setiap penugasan yang Anda jalani lewat roster menambah poin untuk penugasan berikutnya.", 0.6, 5.0, 12.1, 0.85);
+
+  divider("05", "Setelah terpilih", "Pengumuman, kartu ID, dan laporan.", "Setelah terpilih");
 
   s = content("Pengumuman hasil seleksi", "Setelah terpilih");
   phone(s, "07-announcement", 0.9, 1.45, 5.3, "Pengumuman");
@@ -198,8 +250,8 @@ const THEME = {
 
   s = pres.addSlide({ masterName: "Judul", sectionTitle: "Penutup" });
   s.addText("Siap bertugas", { x: 0.8, y: 1.6, w: 7.5, h: 1.2, fontSize: 48, bold: true, color: C.background1, fontFace: THEME.headFontFace, margin: 0, isTextBox: true, objectName: "Judul penutup" });
-  s.addText([{ text: "1. Isi Google Form pendaftaran", options: { breakLine: true } }, { text: "2. Aktifkan akun dan buat password", options: { breakLine: true } }, { text: "3. Lengkapi profil dan gabung grup WhatsApp", options: { breakLine: true } }, { text: "4. Pantau alert, ajukan diri, kirim laporan" }],
-    { x: 0.8, y: 3.0, w: 7.2, h: 2.0, fontSize: 20, color: C.background1, valign: "top", margin: 0, paraSpaceAfter: 8, isTextBox: true, objectName: "Ringkasan" });
+  s.addText([{ text: "1. Isi Google Form pendaftaran", options: { breakLine: true } }, { text: "2. Aktifkan akun dan buat password", options: { breakLine: true } }, { text: "3. Lengkapi profil dan gabung grup WhatsApp", options: { breakLine: true } }, { text: "4. Pantau alert, ajukan diri, kirim laporan", options: { breakLine: true } }, { text: "5. Buka WASHPEDIA untuk info WASH PMI" }],
+    { x: 0.8, y: 2.85, w: 7.2, h: 2.4, fontSize: 20, color: C.background1, valign: "top", margin: 0, paraSpaceAfter: 8, isTextBox: true, objectName: "Ringkasan" });
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.8, y: 5.4, w: 4.4, h: 0.7, rectRadius: 0.35, fill: { color: C.background1 }, line: { color: C.background1 }, objectName: "Kotak alamat" });
   s.addText("was-hroster.vercel.app", { x: 0.8, y: 5.4, w: 4.4, h: 0.7, fontSize: 20, bold: true, color: C.accent1, align: "center", valign: "middle", margin: 0, isTextBox: true, hyperlink: { url: "https://was-hroster.vercel.app" }, objectName: "Alamat aplikasi" });
   phone(s, "08-idcard", 9.2, 0.75, 6.0, "Kartu ID");
