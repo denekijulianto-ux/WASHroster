@@ -118,7 +118,7 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.waitForSelector("text=Beranda anggota", { timeout: 4000 });
   });
   await step("member applies to the alert", async () => {
-    await p.click("#m-alert [data-act=respond][data-v=bersedia]"); await p.waitForTimeout(600); await p.waitForSelector("text=Menunggu keputusan admin");
+    await p.click("#m-alert [data-act=respond][data-v=bersedia]"); await p.waitForTimeout(600); await p.waitForSelector("text=sudah terkirim"); await p.setViewportSize({ width: 390, height: 844 }); await p.locator("text=sudah terkirim").scrollIntoViewIfNeeded(); await shot("04b-submitted"); await p.setViewportSize({ width: 1440, height: 900 });
     if (await p.locator("[data-act=mode]").count()) throw new Error("mode switch visible to member");
   });
   await step("member logs out", logout);

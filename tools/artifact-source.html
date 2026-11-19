@@ -703,7 +703,8 @@ function vMemberHome(){
   const resp=(a,c)=>{const s=c.state,btn=(v,l,cls)=>`<button class="btn sm ${cls||""}" data-act="respond" data-v="${v}" data-a="${a.id}">${l}</button>`;
     if(s==="diundang")return btn("bersedia","Saya bersedia","primary")+btn("menolak","Tidak bisa");
     if(s==="menolak")return `<span class="pill off">Anda menolak</span>`+btn("bersedia","Ubah: bersedia");
-    return `<span class="pill ok">Menunggu keputusan admin</span>`+btn("menolak","Batalkan","ghost")};
+    const when=c.respAt?" "+stampT(c.respAt):"";
+    return `<div style="display:flex;flex-direction:column;gap:6px;width:100%"><span class="pill ok" style="align-self:flex-start">✓ ${s==="bersedia"?"Kesediaan Anda sudah terkirim":"Pengajuan Anda sudah terkirim"}${esc(when)}</span><span class="muted" style="font-size:.82rem">Sedang menunggu hasil seleksi. Hasilnya diumumkan di Beranda dan lewat email/WhatsApp.</span><div>${btn("menolak","Batalkan pengajuan","ghost")}</div></div>`};
   const reps=m.reports||{};
   const anns=announced();
   return `<section class="hero mhero" id="m-top"><div class="phead">${av(m,"lg")}<div><p class="eyebrow">Beranda anggota · sudah masuk</p><h1 style="font-size:clamp(1.6rem,3.2vw,2.3rem)">${esc(m.name)}</h1>
