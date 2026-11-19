@@ -344,6 +344,19 @@ textarea.input{min-height:90px;resize:vertical}
 .steps li::before{content:counter(s);width:28px;height:28px;border-radius:50%;border:1.5px solid var(--band-muted);display:grid;place-items:center;font-weight:700;color:var(--band-ink);font-size:.8rem}
 .steps b{color:var(--band-ink);display:block}
 .consent{display:flex;gap:10px;align-items:flex-start;font-size:.86rem}
+.authcard{width:100%;max-width:440px;margin:28px auto 0;padding:26px 24px;gap:16px}
+.regcard{max-width:520px}
+.auth-h{font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:1.6rem;margin-top:4px}
+.form.one{grid-template-columns:minmax(0,1fr)}
+.btn.big{width:100%;padding:12px 16px;font-size:1rem;border-radius:10px}
+.mailchip{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:600;font-size:.9rem;min-width:0}
+.mailchip svg{width:16px;height:16px;color:var(--teal);flex:none}.mailchip span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+details.opt{border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+details.opt summary{cursor:pointer;font-weight:600;font-size:.9rem}
+.auth-steps{display:flex;gap:6px;flex-wrap:wrap;font-size:.78rem;color:var(--muted)}
+.auth-steps span{background:var(--panel-2);border:1px solid var(--line);border-radius:99px;padding:3px 10px}
+.auth-steps span.on{background:var(--teal-soft);color:var(--teal);border-color:var(--teal)}
+.codein{font-size:1.6rem!important;letter-spacing:.4em;text-align:center;font-family:var(--f-mono)}
 .consent input{margin-top:3px;accent-color:var(--teal);width:17px;height:17px;flex:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
@@ -581,6 +594,7 @@ function tabsBar(){
   const bn=$("#bnav");
   if(memberView()){const hasAnn=announced().length;bn.innerHTML=[["m-top","Beranda",I.home],hasAnn?["m-ann","Info",I.info]:null,["m-alert","Alert",I.bell],["m-dep","Tugas",I.pin],["m-card","Kartu",I.id],["m-rep","Laporan",I.chart]].filter(Boolean).map(([id,l,ic])=>`<button data-act="jump" data-v="${id}">${ic}<span>${l}</span></button>`).join("")}
   else{const t=tabOf(S.route),bdg={alert:alerts().filter(a=>a.status==="terbuka").length,seleksi:pendingList().length,laporan:allReports().filter(x=>!x.r.seen).length};bn.innerHTML=TABS.map(([k,,ic])=>`<a class="${t===k?"on":""}" href="#${k==="seleksi"&&S.selAlert?"seleksi-"+S.selAlert:k}">${ic}<span>${BN[k]}</span>${bdg[k]?`<i>${bdg[k]}</i>`:""}</a>`).join("")}
+  if(memberView()&&!S.session){$("#tabs").innerHTML="";bn.innerHTML="";return}
   if(memberView()){$("#tabs").innerHTML=`<a class="tab on" href="#beranda"><span class="n">1</span>${I.home}<span class="t">Beranda Anggota</span></a>`;return}
   const t=tabOf(S.route),open=alerts().filter(a=>a.status==="terbuka").length,pend=pendingList().length,rep=allReports().filter(x=>!x.r.seen).length;
   const badge={alert:open,seleksi:pend,laporan:rep};
@@ -1004,7 +1018,10 @@ async function saveMember(id,self){
   if(!m.phone&&!m.email)return fail("Isi minimal satu kontak: nomor WhatsApp atau email, agar alert bisa dikirim.");
   if(m.email&&!/^\S+@\S+\.\S+$/.test(m.email))return fail("Format email belum benar.");
   if(m.phone&&waNum(m.phone).length<10)return fail("Nomor WhatsApp terlalu pendek.");
-  const reg=$("#mconsent");if(reg&&!reg.checked)return fail("Centang persetujuan penggunaan data untuk melanjutkan.");
+  const reg=$("#mconsent");
+  if(reg&&!m.phone)return fail("Isi nomor WhatsApp aktif, untuk menerima alert penugasan.");
+  if(reg&&!m.province)return fail("Isi provinsi asal.");
+  if(reg&&!reg.checked)return fail("Centang persetujuan penggunaan data untuk melanjutkan.");
   if(self)id=S.uid;
   const old=id&&S.members[id];const nid=id||newId("m");
   const doc=Object.assign({},old||{},m,{updatedAt:Date.now()});if(!old)doc.createdAt=Date.now();
@@ -1016,12 +1033,29 @@ async function saveMember(id,self){
 /* ---------- self-registration & volunteer portal ---------- */
 function vSignin(){return `<div class="regwrap"><section class="hero"><p class="eyebrow">Pendaftaran relawan & staf</p><h1 style="font-size:clamp(1.8rem,3.6vw,2.6rem)">Gabung Roster WASH PMI</h1><p class="lead">Daftarkan diri sekali, lalu terima alert penugasan WASH lewat WhatsApp dan email.</p></section><section class="panel"><h2>Masuk atau daftar</h2><p class="muted">Masuk dengan akun claude.ai yang memakai <b>email aktif</b> Anda. Setelah masuk, buka kembali tautan dari admin: anggota baru langsung melihat formulir pendaftaran, anggota lama langsung masuk ke Beranda Anggota.</p><p class="note">Jika Anda sudah masuk tetapi tetap melihat pesan ini, minta koordinator memberi Anda akses yang bisa mengisi (bukan hanya melihat).</p></section></div>`}
 function vRegister(){
-  const p=S.meProfile||{};const m={status:"tersedia",role:ROLES[1],level:LEVELS[0],name:p.name||"",email:p.email||""};
+  const p=S.meProfile||{};const mail=lockMail()||p.email||"";
   S.pendingPhoto=S.pendingPhoto||"";
-  return `<div class="regwrap"><section class="hero" style="padding-bottom:30px"><p class="eyebrow">Pendaftaran relawan & staf</p><h1 style="font-size:clamp(1.8rem,3.6vw,2.6rem)">Gabung Roster WASH PMI</h1><p class="lead">Isi profil sekali. Koordinator akan mengirim alert penugasan ke WhatsApp dan email Anda saat ada operasi tanggap darurat yang sesuai.</p>
-    <ol class="steps" style="margin-top:22px"><li><span><b>Isi profil &amp; foto</b>Foto dipakai untuk kartu ID penugasan.</span></li><li><span><b>Terima alert</b>Lewat WhatsApp, email, dan portal ini.</span></li><li><span><b>Jawab bersedia atau tidak</b>Atau ajukan diri pada alert yang terbuka.</span></li><li><span><b>Lihat kartu ID</b>Kartu muncul di portal begitu Anda terpilih.</span></li></ol></section>
-  <section class="panel"><h2>Data diri</h2>${memberFields(m,true).replace('<p class="err field full" id="merr" hidden></p>',`<label class="consent" style="grid-column:1/-1"><input type="checkbox" id="mconsent"><span>Saya setuju data ini dipakai PMI untuk keperluan roster dan penugasan WASH, dan hanya dapat dilihat oleh koordinator roster.</span></label><p class="err field full" id="merr" hidden></p>`)}
-    <div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="save-member" data-self="1">Daftar ke roster</button></div></section></div>`}
+  return `<section class="panel authcard regcard">
+    <div><p class="eyebrow">Langkah terakhir</p><h1 class="auth-h">Lengkapi pendaftaran</h1><p class="muted">Isi data singkat ini. Foto dan data lain bisa dilengkapi nanti dari profil Anda.</p></div>
+    <div class="mailchip">${I.mail}<span>${esc(mail)}</span><span class="pill ok">Terverifikasi</span></div>
+    <form class="form one" id="mform" novalidate>
+      <input type="hidden" id="memail" value="${esc(mail)}"><input type="hidden" id="mstat" value="tersedia">
+      <div class="field"><label for="mname">Nama lengkap</label><input class="input" id="mname" autocomplete="name" value="${esc(p.name||"")}" required></div>
+      <div class="field"><label for="mphone">Nomor WhatsApp</label><input class="input" id="mphone" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxx"></div>
+      <div class="field"><label for="mrole">Profil WASH</label><select class="input" id="mrole">${ROLES.map((r,i)=>`<option ${i===1?"selected":""}>${esc(r)}</option>`).join("")}</select></div>
+      <div class="field"><label for="mprov">Provinsi</label><input class="input" id="mprov" list="provlist" placeholder="Ketik nama provinsi"><datalist id="provlist">${PROV.map(x=>`<option value="${x}">`).join("")}</datalist></div>
+      <div class="field"><label for="mchap">Markas PMI</label><input class="input" id="mchap" placeholder="mis. PMI Kab. Sikka"></div>
+      <details class="opt"><summary>Tambah foto &amp; data lain <span class="muted">(opsional)</span></summary>
+        <div class="form one" style="margin-top:12px">
+          <div class="field"><label>Foto wajah (untuk kartu ID)</label><div class="photo-in"><div id="mphoto">${av({name:p.name||"?"},"lg")}</div><input type="file" id="mfile" accept="image/*"></div></div>
+          <div class="field"><label for="mlevel">Kategori</label><select class="input" id="mlevel">${LEVELS.map(r=>`<option>${esc(r)}</option>`).join("")}</select></div>
+          <div class="field"><label for="mskills">Keahlian &amp; pelatihan</label><input class="input" id="mskills" placeholder="mis. PHAST 2023, operator WTU"></div>
+          <div class="field"><label for="mlang">Bahasa</label><input class="input" id="mlang" placeholder="Indonesia, Inggris…"></div>
+        </div></details>
+      <label class="consent"><input type="checkbox" id="mconsent"><span>Saya setuju data ini dipakai untuk roster dan penugasan WASH PMI.</span></label>
+      <p class="err" id="merr" hidden></p>
+      <button class="btn primary big" type="button" data-act="save-member" data-self="1">Daftar</button>
+    </form></section>`}
 function vPortal(){
   const m=Object.assign({id:S.uid},S.members[S.uid]),t=today();
   const mine=[],open=[];alerts().forEach(a=>{const c=cands(a).find(c=>c.mid===S.uid);if(c)mine.push({a,c});else if(a.status==="terbuka"&&a.deadline>=t)open.push(a)});

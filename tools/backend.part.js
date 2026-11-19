@@ -89,25 +89,24 @@ async function uploadPhoto(dataUrl){
 /* ---------- auth screens ---------- */
 S.auth=S.auth||{mode:"member",step:"email",email:"",err:"",info:"",busy:false,cool:0};
 function vSignin(){
-  const A=S.auth,org=(S.settings.app&&S.settings.app.org)||"";
+  const A=S.auth;
   const err=A.err?`<p class="err">${esc(A.err)}</p>`:"",info=A.info?`<p class="note">${esc(A.info)}</p>`:"";
-  let box;
-  if(A.mode==="admin")box=`<h2>Masuk sebagai admin</h2><p class="muted">Gunakan email dan password admin.</p>
-     <form class="form" id="adminform" style="grid-template-columns:1fr" novalidate><div class="field"><label for="admail">Email</label><input class="input" id="admail" type="email" autocomplete="username" value="${esc(A.email)}"></div>
+  const steps=n=>`<div class="auth-steps"><span class="${n===1?"on":""}">1 · Email</span><span class="${n===2?"on":""}">2 · Kode</span><span>3 · Data singkat</span></div>`;
+  if(A.mode==="admin")return `<section class="panel authcard" id="authbox"><div><p class="eyebrow">Khusus admin</p><h1 class="auth-h">Masuk admin</h1></div>
+     <form class="form one" id="adminform" novalidate><div class="field"><label for="admail">Email</label><input class="input" id="admail" type="email" autocomplete="username" value="${esc(A.email)}"></div>
      <div class="field"><label for="adpw">Password</label><input class="input" id="adpw" type="password" autocomplete="current-password"></div>${err}${info}
-     <button class="btn primary" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
-     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-mode" data-v="member">← Masuk sebagai anggota</button><button class="btn sm ghost" data-act="pw-forgot">Lupa password?</button></div>`;
-  else if(A.step==="code")box=`<h2>Masukkan kode verifikasi</h2><p class="muted">Kode dikirim ke <b>${esc(A.email)}</b>. Cek juga folder spam. Anda juga bisa langsung menekan tautan di email tersebut.</p>
-     <form class="form" id="codeform" style="grid-template-columns:1fr" novalidate><div class="field"><label for="acode">Kode dari email</label><input class="input mono" id="acode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" style="font-size:1.4rem;letter-spacing:.3em;text-align:center"></div>${err}${info}
-     <button class="btn primary" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Verifikasi & masuk"}</button></form>
-     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-back">Ganti email</button><button class="btn sm ghost" data-act="otp-resend" ${A.cool>Date.now()?"disabled":""}>Kirim ulang kode</button></div>`;
-  else box=`<h2>Masuk atau daftar</h2><p class="muted">Masukkan <b>email aktif</b> Anda. Kami kirim kode verifikasi ke email itu. Anggota baru langsung diarahkan ke formulir pendaftaran.</p>
-     <form class="form" id="emailform" style="grid-template-columns:1fr" novalidate><div class="field"><label for="aemail">Email aktif</label><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}"></div>${err}${info}
-     <button class="btn primary" type="submit" ${A.busy?"disabled":""}>${A.busy?"Mengirim…":"Kirim kode verifikasi"}</button></form>
-     <div class="row" style="justify-content:flex-end"><button class="btn sm ghost" data-act="auth-mode" data-v="admin">Masuk sebagai admin</button></div>`;
-  return `<div class="regwrap"><section class="hero"><p class="eyebrow">${esc(org||"Roster Relawan & Staf WASH")}</p><h1 style="font-size:clamp(1.8rem,3.6vw,2.6rem)">Roster WASH PMI</h1><p class="lead">Daftar sekali dengan email aktif, lalu terima alert penugasan WASH, lihat pengumuman, kartu ID, dan kirim laporan pasca penugasan.</p>
-    <ol class="steps" style="margin-top:22px"><li><span><b>Masukkan email aktif</b>Kode verifikasi dikirim ke email Anda.</span></li><li><span><b>Lengkapi profil &amp; foto</b>Foto dipakai untuk kartu ID penugasan.</span></li><li><span><b>Terima alert</b>Jawab bersedia atau ajukan diri dari Beranda.</span></li><li><span><b>Kartu ID &amp; laporan</b>Muncul begitu Anda terpilih.</span></li></ol></section>
-    <section class="panel" id="authbox">${box}</section></div>`}
+     <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
+     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-mode" data-v="member">← Kembali</button><button class="btn sm ghost" data-act="pw-forgot">Lupa password?</button></div></section>`;
+  if(A.step==="code")return `<section class="panel authcard" id="authbox">${steps(2)}<div><h1 class="auth-h">Cek email Anda</h1><p class="muted">Masukkan kode yang kami kirim ke <b>${esc(A.email)}</b>. Belum ada? Cek folder spam.</p></div>
+     <form class="form one" id="codeform" novalidate><input class="input codein" id="acode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="••••••" aria-label="Kode verifikasi">${err}${info}
+     <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
+     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-back">← Ganti email</button><button class="btn sm ghost" data-act="otp-resend" ${A.cool>Date.now()?"disabled":""}>Kirim ulang kode</button></div></section>`;
+  return `<section class="panel authcard" id="authbox">${steps(1)}<div><h1 class="auth-h">Daftar atau masuk</h1><p class="muted">Untuk relawan &amp; staf WASH PMI. Cukup masukkan email aktif Anda.</p></div>
+     <form class="form one" id="emailform" novalidate><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}" aria-label="Email aktif" style="padding:12px">${err}${info}
+     <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Mengirim kode…":"Lanjut"}</button></form>
+     <p class="muted" style="font-size:.8rem">Anggota baru otomatis diarahkan ke pendaftaran. Anggota lama langsung masuk.</p>
+     <div style="text-align:center;border-top:1px solid var(--line);padding-top:12px"><button class="btn sm ghost" data-act="auth-mode" data-v="admin">Masuk sebagai admin</button></div></section>`}
+document.addEventListener("input",e=>{if(e.target&&e.target.id==="acode"){const d=e.target.value.replace(/\D/g,"");if(d.length===6&&!S.auth.busy)verifyCode(d)}});
 function authRender(){S.view="signin";$("#cp").innerHTML=vSignin();const f=$("#aemail")||$("#acode")||$("#adpw");if(f&&!S.auth.busy)f.focus()}
 const redirectTo=()=>location.origin+location.pathname;
 async function sendOtp(email){

@@ -350,6 +350,19 @@ textarea.input{min-height:90px;resize:vertical}
 .steps li::before{content:counter(s);width:28px;height:28px;border-radius:50%;border:1.5px solid var(--band-muted);display:grid;place-items:center;font-weight:700;color:var(--band-ink);font-size:.8rem}
 .steps b{color:var(--band-ink);display:block}
 .consent{display:flex;gap:10px;align-items:flex-start;font-size:.86rem}
+.authcard{width:100%;max-width:440px;margin:28px auto 0;padding:26px 24px;gap:16px}
+.regcard{max-width:520px}
+.auth-h{font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:1.6rem;margin-top:4px}
+.form.one{grid-template-columns:minmax(0,1fr)}
+.btn.big{width:100%;padding:12px 16px;font-size:1rem;border-radius:10px}
+.mailchip{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:600;font-size:.9rem;min-width:0}
+.mailchip svg{width:16px;height:16px;color:var(--teal);flex:none}.mailchip span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+details.opt{border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+details.opt summary{cursor:pointer;font-weight:600;font-size:.9rem}
+.auth-steps{display:flex;gap:6px;flex-wrap:wrap;font-size:.78rem;color:var(--muted)}
+.auth-steps span{background:var(--panel-2);border:1px solid var(--line);border-radius:99px;padding:3px 10px}
+.auth-steps span.on{background:var(--teal-soft);color:var(--teal);border-color:var(--teal)}
+.codein{font-size:1.6rem!important;letter-spacing:.4em;text-align:center;font-family:var(--f-mono)}
 .consent input{margin-top:3px;accent-color:var(--teal);width:17px;height:17px;flex:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 

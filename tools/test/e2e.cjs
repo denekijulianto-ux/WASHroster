@@ -35,17 +35,17 @@ const OUT = process.env.SHOTS || "/tmp";
 
   await step("new member: email code → registration (email locked)", async () => {
     await p.fill("#aemail", "wulan@contoh.id"); await p.click("#emailform button[type=submit]");
-    await p.waitForSelector("#codeform"); await p.fill("#acode", "000000"); await p.click("#codeform button[type=submit]");
+    await p.waitForSelector("#codeform"); await p.fill("#acode", "000000");
     await p.waitForSelector("text=Kode salah");
-    await p.fill("#acode", "123456"); await p.click("#codeform button[type=submit]");
+    await p.fill("#acode", "123456");
     await p.waitForSelector("#mform", { timeout: 4000 });
-    const v = await p.inputValue("#memail"); const ro = await p.getAttribute("#memail", "readonly");
-    if (v !== "wulan@contoh.id" || ro === null) throw new Error("email not locked: " + v);
+    const v = await p.inputValue("#memail"); if (v !== "wulan@contoh.id" || (await p.locator("#memail").getAttribute("type")) !== "hidden") throw new Error("email not locked: " + v);
   });
   await shot("03-register");
   await step("member registers", async () => {
     await p.fill("#mname", "Wulan Pratiwi"); await p.fill("#mphone", "081355554444"); await p.selectOption("#mrole", "Promosi Kebersihan");
-    await p.fill("#mprov", "Jawa Tengah"); await p.check("#mconsent"); await p.click("[data-act=save-member][data-self]");
+    await p.check("#mconsent"); await p.click("[data-act=save-member][data-self]"); await p.waitForSelector("text=Isi provinsi asal.");
+    await p.fill("#mprov", "Jawa Tengah"); await p.click("[data-act=save-member][data-self]");
     await p.waitForSelector("text=Beranda anggota", { timeout: 4000 });
   });
   await step("member sees alert and applies", async () => {
@@ -78,7 +78,7 @@ const OUT = process.env.SHOTS || "/tmp";
   await step("admin logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#emailform"); });
 
   await step("wulan (code login) sees announcement, card, writes report", async () => {
-    await p.fill("#aemail", "wulan@contoh.id"); await p.click("#emailform button[type=submit]"); await p.fill("#acode", "123456"); await p.click("#codeform button[type=submit]");
+    await p.fill("#aemail", "wulan@contoh.id"); await p.click("#emailform button[type=submit]"); await p.fill("#acode", "123456");
     await p.waitForSelector("text=Pengumuman anggota terpilih", { timeout: 4000 });
     await p.waitForSelector("text=Selamat, Anda terpilih");
     await p.click("#m-rep [data-act=report]"); await p.fill("#rsum", "Promosi kebersihan di 3 posko pengungsian."); await p.fill("#rm-people", "1250");

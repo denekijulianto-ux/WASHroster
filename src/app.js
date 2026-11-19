@@ -150,6 +150,7 @@ function tabsBar(){
   const bn=$("#bnav");
   if(memberView()){const hasAnn=announced().length;bn.innerHTML=[["m-top","Beranda",I.home],hasAnn?["m-ann","Info",I.info]:null,["m-alert","Alert",I.bell],["m-dep","Tugas",I.pin],["m-card","Kartu",I.id],["m-rep","Laporan",I.chart]].filter(Boolean).map(([id,l,ic])=>`<button data-act="jump" data-v="${id}">${ic}<span>${l}</span></button>`).join("")}
   else{const t=tabOf(S.route),bdg={alert:alerts().filter(a=>a.status==="terbuka").length,seleksi:pendingList().length,laporan:allReports().filter(x=>!x.r.seen).length};bn.innerHTML=TABS.map(([k,,ic])=>`<a class="${t===k?"on":""}" href="#${k==="seleksi"&&S.selAlert?"seleksi-"+S.selAlert:k}">${ic}<span>${BN[k]}</span>${bdg[k]?`<i>${bdg[k]}</i>`:""}</a>`).join("")}
+  if(memberView()&&!S.session){$("#tabs").innerHTML="";bn.innerHTML="";return}
   if(memberView()){$("#tabs").innerHTML=`<a class="tab on" href="#beranda"><span class="n">1</span>${I.home}<span class="t">Beranda Anggota</span></a>`;return}
   const t=tabOf(S.route),open=alerts().filter(a=>a.status==="terbuka").length,pend=pendingList().length,rep=allReports().filter(x=>!x.r.seen).length;
   const badge={alert:open,seleksi:pend,laporan:rep};
@@ -582,7 +583,10 @@ async function saveMember(id,self){
   if(!m.phone&&!m.email)return fail("Isi minimal satu kontak: nomor WhatsApp atau email, agar alert bisa dikirim.");
   if(m.email&&!/^\S+@\S+\.\S+$/.test(m.email))return fail("Format email belum benar.");
   if(m.phone&&waNum(m.phone).length<10)return fail("Nomor WhatsApp terlalu pendek.");
-  const reg=$("#mconsent");if(reg&&!reg.checked)return fail("Centang persetujuan penggunaan data untuk melanjutkan.");
+  const reg=$("#mconsent");
+  if(reg&&!m.phone)return fail("Isi nomor WhatsApp aktif, untuk menerima alert penugasan.");
+  if(reg&&!m.province)return fail("Isi provinsi asal.");
+  if(reg&&!reg.checked)return fail("Centang persetujuan penggunaan data untuk melanjutkan.");
   if(self)id=S.uid;
   try{m.photo=await uploadPhoto(m.photo)}catch(e){fail(e.message);return}
   const old=id&&S.members[id];const nid=id||newId("m");
@@ -594,12 +598,29 @@ async function saveMember(id,self){
 
 /* ---------- self-registration & volunteer portal ---------- */
 function vRegister(){
-  const p=S.meProfile||{};const m={status:"tersedia",role:ROLES[1],level:LEVELS[0],name:p.name||"",email:p.email||""};
+  const p=S.meProfile||{};const mail=lockMail()||p.email||"";
   S.pendingPhoto=S.pendingPhoto||"";
-  return `<div class="regwrap"><section class="hero" style="padding-bottom:30px"><p class="eyebrow">Pendaftaran relawan & staf</p><h1 style="font-size:clamp(1.8rem,3.6vw,2.6rem)">Gabung Roster WASH PMI</h1><p class="lead">Isi profil sekali. Koordinator akan mengirim alert penugasan ke WhatsApp dan email Anda saat ada operasi tanggap darurat yang sesuai.</p>
-    <ol class="steps" style="margin-top:22px"><li><span><b>Isi profil &amp; foto</b>Foto dipakai untuk kartu ID penugasan.</span></li><li><span><b>Terima alert</b>Lewat WhatsApp, email, dan portal ini.</span></li><li><span><b>Jawab bersedia atau tidak</b>Atau ajukan diri pada alert yang terbuka.</span></li><li><span><b>Lihat kartu ID</b>Kartu muncul di portal begitu Anda terpilih.</span></li></ol></section>
-  <section class="panel"><h2>Data diri</h2>${memberFields(m,true).replace('<p class="err field full" id="merr" hidden></p>',`<label class="consent" style="grid-column:1/-1"><input type="checkbox" id="mconsent"><span>Saya setuju data ini dipakai PMI untuk keperluan roster dan penugasan WASH, dan hanya dapat dilihat oleh koordinator roster.</span></label><p class="err field full" id="merr" hidden></p>`)}
-    <div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="save-member" data-self="1">Daftar ke roster</button></div></section></div>`}
+  return `<section class="panel authcard regcard">
+    <div><p class="eyebrow">Langkah terakhir</p><h1 class="auth-h">Lengkapi pendaftaran</h1><p class="muted">Isi data singkat ini. Foto dan data lain bisa dilengkapi nanti dari profil Anda.</p></div>
+    <div class="mailchip">${I.mail}<span>${esc(mail)}</span><span class="pill ok">Terverifikasi</span></div>
+    <form class="form one" id="mform" novalidate>
+      <input type="hidden" id="memail" value="${esc(mail)}"><input type="hidden" id="mstat" value="tersedia">
+      <div class="field"><label for="mname">Nama lengkap</label><input class="input" id="mname" autocomplete="name" value="${esc(p.name||"")}" required></div>
+      <div class="field"><label for="mphone">Nomor WhatsApp</label><input class="input" id="mphone" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxx"></div>
+      <div class="field"><label for="mrole">Profil WASH</label><select class="input" id="mrole">${ROLES.map((r,i)=>`<option ${i===1?"selected":""}>${esc(r)}</option>`).join("")}</select></div>
+      <div class="field"><label for="mprov">Provinsi</label><input class="input" id="mprov" list="provlist" placeholder="Ketik nama provinsi"><datalist id="provlist">${PROV.map(x=>`<option value="${x}">`).join("")}</datalist></div>
+      <div class="field"><label for="mchap">Markas PMI</label><input class="input" id="mchap" placeholder="mis. PMI Kab. Sikka"></div>
+      <details class="opt"><summary>Tambah foto &amp; data lain <span class="muted">(opsional)</span></summary>
+        <div class="form one" style="margin-top:12px">
+          <div class="field"><label>Foto wajah (untuk kartu ID)</label><div class="photo-in"><div id="mphoto">${av({name:p.name||"?"},"lg")}</div><input type="file" id="mfile" accept="image/*"></div></div>
+          <div class="field"><label for="mlevel">Kategori</label><select class="input" id="mlevel">${LEVELS.map(r=>`<option>${esc(r)}</option>`).join("")}</select></div>
+          <div class="field"><label for="mskills">Keahlian &amp; pelatihan</label><input class="input" id="mskills" placeholder="mis. PHAST 2023, operator WTU"></div>
+          <div class="field"><label for="mlang">Bahasa</label><input class="input" id="mlang" placeholder="Indonesia, Inggris…"></div>
+        </div></details>
+      <label class="consent"><input type="checkbox" id="mconsent"><span>Saya setuju data ini dipakai untuk roster dan penugasan WASH PMI.</span></label>
+      <p class="err" id="merr" hidden></p>
+      <button class="btn primary big" type="button" data-act="save-member" data-self="1">Daftar</button>
+    </form></section>`}
 function vPortal(){
   const m=Object.assign({id:S.uid},S.members[S.uid]),t=today();
   const mine=[],open=[];alerts().forEach(a=>{const c=cands(a).find(c=>c.mid===S.uid);if(c)mine.push({a,c});else if(a.status==="terbuka"&&a.deadline>=t)open.push(a)});
@@ -1067,25 +1088,24 @@ async function uploadPhoto(dataUrl){
 /* ---------- auth screens ---------- */
 S.auth=S.auth||{mode:"member",step:"email",email:"",err:"",info:"",busy:false,cool:0};
 function vSignin(){
-  const A=S.auth,org=(S.settings.app&&S.settings.app.org)||"";
+  const A=S.auth;
   const err=A.err?`<p class="err">${esc(A.err)}</p>`:"",info=A.info?`<p class="note">${esc(A.info)}</p>`:"";
-  let box;
-  if(A.mode==="admin")box=`<h2>Masuk sebagai admin</h2><p class="muted">Gunakan email dan password admin.</p>
-     <form class="form" id="adminform" style="grid-template-columns:1fr" novalidate><div class="field"><label for="admail">Email</label><input class="input" id="admail" type="email" autocomplete="username" value="${esc(A.email)}"></div>
+  const steps=n=>`<div class="auth-steps"><span class="${n===1?"on":""}">1 · Email</span><span class="${n===2?"on":""}">2 · Kode</span><span>3 · Data singkat</span></div>`;
+  if(A.mode==="admin")return `<section class="panel authcard" id="authbox"><div><p class="eyebrow">Khusus admin</p><h1 class="auth-h">Masuk admin</h1></div>
+     <form class="form one" id="adminform" novalidate><div class="field"><label for="admail">Email</label><input class="input" id="admail" type="email" autocomplete="username" value="${esc(A.email)}"></div>
      <div class="field"><label for="adpw">Password</label><input class="input" id="adpw" type="password" autocomplete="current-password"></div>${err}${info}
-     <button class="btn primary" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
-     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-mode" data-v="member">← Masuk sebagai anggota</button><button class="btn sm ghost" data-act="pw-forgot">Lupa password?</button></div>`;
-  else if(A.step==="code")box=`<h2>Masukkan kode verifikasi</h2><p class="muted">Kode dikirim ke <b>${esc(A.email)}</b>. Cek juga folder spam. Anda juga bisa langsung menekan tautan di email tersebut.</p>
-     <form class="form" id="codeform" style="grid-template-columns:1fr" novalidate><div class="field"><label for="acode">Kode dari email</label><input class="input mono" id="acode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" style="font-size:1.4rem;letter-spacing:.3em;text-align:center"></div>${err}${info}
-     <button class="btn primary" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Verifikasi & masuk"}</button></form>
-     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-back">Ganti email</button><button class="btn sm ghost" data-act="otp-resend" ${A.cool>Date.now()?"disabled":""}>Kirim ulang kode</button></div>`;
-  else box=`<h2>Masuk atau daftar</h2><p class="muted">Masukkan <b>email aktif</b> Anda. Kami kirim kode verifikasi ke email itu. Anggota baru langsung diarahkan ke formulir pendaftaran.</p>
-     <form class="form" id="emailform" style="grid-template-columns:1fr" novalidate><div class="field"><label for="aemail">Email aktif</label><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}"></div>${err}${info}
-     <button class="btn primary" type="submit" ${A.busy?"disabled":""}>${A.busy?"Mengirim…":"Kirim kode verifikasi"}</button></form>
-     <div class="row" style="justify-content:flex-end"><button class="btn sm ghost" data-act="auth-mode" data-v="admin">Masuk sebagai admin</button></div>`;
-  return `<div class="regwrap"><section class="hero"><p class="eyebrow">${esc(org||"Roster Relawan & Staf WASH")}</p><h1 style="font-size:clamp(1.8rem,3.6vw,2.6rem)">Roster WASH PMI</h1><p class="lead">Daftar sekali dengan email aktif, lalu terima alert penugasan WASH, lihat pengumuman, kartu ID, dan kirim laporan pasca penugasan.</p>
-    <ol class="steps" style="margin-top:22px"><li><span><b>Masukkan email aktif</b>Kode verifikasi dikirim ke email Anda.</span></li><li><span><b>Lengkapi profil &amp; foto</b>Foto dipakai untuk kartu ID penugasan.</span></li><li><span><b>Terima alert</b>Jawab bersedia atau ajukan diri dari Beranda.</span></li><li><span><b>Kartu ID &amp; laporan</b>Muncul begitu Anda terpilih.</span></li></ol></section>
-    <section class="panel" id="authbox">${box}</section></div>`}
+     <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
+     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-mode" data-v="member">← Kembali</button><button class="btn sm ghost" data-act="pw-forgot">Lupa password?</button></div></section>`;
+  if(A.step==="code")return `<section class="panel authcard" id="authbox">${steps(2)}<div><h1 class="auth-h">Cek email Anda</h1><p class="muted">Masukkan kode yang kami kirim ke <b>${esc(A.email)}</b>. Belum ada? Cek folder spam.</p></div>
+     <form class="form one" id="codeform" novalidate><input class="input codein" id="acode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="••••••" aria-label="Kode verifikasi">${err}${info}
+     <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
+     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-back">← Ganti email</button><button class="btn sm ghost" data-act="otp-resend" ${A.cool>Date.now()?"disabled":""}>Kirim ulang kode</button></div></section>`;
+  return `<section class="panel authcard" id="authbox">${steps(1)}<div><h1 class="auth-h">Daftar atau masuk</h1><p class="muted">Untuk relawan &amp; staf WASH PMI. Cukup masukkan email aktif Anda.</p></div>
+     <form class="form one" id="emailform" novalidate><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}" aria-label="Email aktif" style="padding:12px">${err}${info}
+     <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Mengirim kode…":"Lanjut"}</button></form>
+     <p class="muted" style="font-size:.8rem">Anggota baru otomatis diarahkan ke pendaftaran. Anggota lama langsung masuk.</p>
+     <div style="text-align:center;border-top:1px solid var(--line);padding-top:12px"><button class="btn sm ghost" data-act="auth-mode" data-v="admin">Masuk sebagai admin</button></div></section>`}
+document.addEventListener("input",e=>{if(e.target&&e.target.id==="acode"){const d=e.target.value.replace(/\D/g,"");if(d.length===6&&!S.auth.busy)verifyCode(d)}});
 function authRender(){S.view="signin";$("#cp").innerHTML=vSignin();const f=$("#aemail")||$("#acode")||$("#adpw");if(f&&!S.auth.busy)f.focus()}
 const redirectTo=()=>location.origin+location.pathname;
 async function sendOtp(email){
