@@ -31,7 +31,7 @@ const canRead = (t, r) => {
 const err = (message, code = "P0001") => ({ data: null, error: { message, code } });
 const defaults = {
   members: () => ({ id: uuid(), user_id: null, email: null, phone: "", role: "Suplai Air Bersih", level: "Relawan (KSR/TSR)", province: "", chapter: "", skills: "", lang: "", mis: "", status: "tersedia", photo: "", source: "manual", sheet_sig: null, has_password: false, created_at: now() }),
-  alerts: () => ({ id: uuid(), kind: "bencana", emergency: "", slots: 1, description: "", status: "terbuka", announce_at: null, announce_note: "", created_at: now() }),
+  alerts: () => ({ id: uuid(), kind: "bencana", focus: "", emergency: "", slots: 1, description: "", status: "terbuka", announce_at: null, announce_note: "", created_at: now() }),
   candidates: () => ({ self_response: false, invited_at: null, answered_at: null, email_at: null, wa_at: null, card_no: null, selected_at: null, name: null, thumb: null }),
   reports: () => ({ seen: false, submitted_at: now(), metrics: {} }),
   settings: () => ({}), admins: () => ({}),

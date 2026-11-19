@@ -20,14 +20,14 @@ const fmtDate = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("id-
 const addDays = (d: string, n: number) => { const x = new Date(d + "T00:00:00"); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
 const waNum = (p: string) => { let d = String(p || "").replace(/\D/g, ""); if (!d) return ""; if (d.startsWith("0")) d = "62" + d.slice(1); else if (d.startsWith("8")) d = "62" + d; return d; };
 
-type Alert = { id: string; code: string; title: string; emergency: string; role: string; location: string; start_date: string; dur: number; deadline: string; slots: number; description: string; announce_note: string };
+type Alert = { id: string; kind?: string; focus?: string; code: string; title: string; emergency: string; role: string; location: string; start_date: string; dur: number; deadline: string; slots: number; description: string; announce_note: string };
 
 function alertText(a: Alert, link: string) {
   const end = addDays(a.start_date, Math.max(1, a.dur) - 1);
   return `*ALERT PENUGASAN · ROSTER WASH PMI*
 Kode: ${a.code}
-Operasi: ${a.title}${a.emergency ? ` (${a.emergency})` : ""}
-Posisi dibutuhkan: ${a.role} · ${a.slots} orang
+Operasi: ${a.title}${a.emergency && a.kind !== "non_bencana" ? ` (${a.emergency})` : ""}
+${a.kind === "non_bencana" ? `Jenis: ${a.emergency || "Kegiatan non bencana"}\n` : ""}Posisi dibutuhkan: ${a.role}${a.focus ? ` (bidang ${a.focus})` : ""} · ${a.slots} orang
 Lokasi: ${a.location}
 Periode: ${fmtDate(a.start_date)} – ${fmtDate(end)} (${a.dur} hari)
 Batas konfirmasi: ${fmtDate(a.deadline)}
@@ -76,7 +76,8 @@ Deno.serve(async (req) => {
   if (!a) return json({ error: "alert_not_found" }, 404);
 
   let q = svc.from("members").select("name, email, phone, role, status");
-  if (kind === "alert" && body.audience === "role") q = q.eq("role", a.role);
+  const wantRole = a.kind === "non_bencana" ? (a.focus || "") : a.role;
+  if (kind === "alert" && body.audience === "role" && wantRole) q = q.eq("role", wantRole);
   if (kind === "alert" && body.audience === "available") q = q.eq("status", "tersedia");
   const { data: members } = await q;
   const list = members || [];

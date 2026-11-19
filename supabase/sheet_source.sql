@@ -143,3 +143,6 @@ select cron.schedule('roster-sheet-sync', '*/5 * * * *', $cron$
     body := '{"mode":"run"}'::jsonb,
     timeout_milliseconds := 60000)
 $cron$);
+
+-- Bidang WASH untuk alert non bencana (posisi = Fasilitator/Peserta/Narasumber/…)
+alter table public.alerts add column if not exists focus text not null default '';
