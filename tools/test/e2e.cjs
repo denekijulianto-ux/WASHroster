@@ -214,6 +214,20 @@ const OUT = process.env.SHOTS || "/tmp";
     if (st !== "diundang") throw new Error("not invited: " + st);
     await shot("10-member-summary");
   });
+  await step("ranking of most-assigned members with history", async () => {
+    await p.evaluate(() => { const db = window.__mockdb, m = db.members.find(x => x.name === "Fasil Ahli"), d = n => { const x = new Date(); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+      [["WASH-2025-010", "Pelatihan PHAST Kab. Kudus", "non_bencana", "Fasilitator", -120], ["WASH-2025-004", "Tanggap Darurat Gempa Cianjur", "bencana", "Promosi Kebersihan", -300]].forEach(([code, title, kind, role, off]) => {
+        const id = crypto.randomUUID(); db.alerts.push({ id, kind, focus: "", code, title, emergency: kind === "bencana" ? "Gempa Bumi" : "Pelatihan", role, location: "Jawa Tengah", start_date: d(off), dur: 7, deadline: d(off - 3), slots: 1, description: "", status: "ditutup", announce_at: null, announce_note: "", created_at: new Date().toISOString() });
+        db.candidates.push({ alert_id: id, member_id: m.id, state: "terpilih", self_response: false, invited_at: null, answered_at: null, email_at: null, wa_at: null, card_no: code + "-01", selected_at: new Date().toISOString(), name: m.name, thumb: null }); }); });
+    await p.click("[data-act=org-edit]"); await p.click("[data-act=org-save]"); await p.waitForTimeout(800); // a write reloads data
+    await p.click(".tab:has-text('Beranda')"); await p.waitForSelector("#sec-rank");
+    const first = await p.$eval("#sec-rank .rank .rname b", x => x.textContent); if (first !== "Fasil Ahli") throw new Error("rank first: " + first);
+    await p.click("#sec-rank .rank summary"); await p.waitForSelector("#sec-rank >> text=Tanggap Darurat Gempa Cianjur"); await p.waitForSelector("#sec-rank >> text=Belum lapor");
+    await p.locator("#sec-rank").scrollIntoViewIfNeeded(); await shot("11-ranking");
+    await p.click(".tab:has-text('Anggota Roster')"); await p.click("[data-act=fsort][data-v=tugas]"); await p.waitForTimeout(300);
+    const top = await p.$eval("#rlist tbody tr b", x => x.textContent); if (!/Fasil Ahli/.test(top)) throw new Error("roster sort: " + top);
+    await p.click("tr[data-act=selm]:has-text('Fasil Ahli')"); await p.waitForSelector("text=Riwayat penugasan (2×, 14 hari)");
+  });
   await step("profile origin: Partner National Societies / IFRC / Markas Pusat", async () => {
     await p.click("#tbar [data-act=new-member]"); await p.fill("#mname", "Sam PNS"); await p.fill("#mphone", "081399990000");
     await p.selectOption("#mchapk", "pns"); await p.waitForSelector("#mchapl >> text=Nama perhimpunan"); await p.fill("#mchap", "American Red Cross");
