@@ -12,8 +12,14 @@ const OUT = process.env.SHOTS || "/tmp";
   const shot = n => p.screenshot({ path: `${OUT}/e2e-${n}.png` });
   const t = new Date().toISOString().slice(0, 10);
 
+  await p.route("**/functions/v1/member-login", async r => {
+    const b = JSON.parse(r.request().postData() || "{}");
+    const ok = b.email === "wulan@contoh.id" && String(b.phone).replace(/\D/g, "").endsWith("81355554444");
+    const reg = b.email === "wulan@contoh.id";
+    r.fulfill({ status: ok ? 200 : reg ? 401 : 404, contentType: "application/json", body: JSON.stringify(ok ? { token_hash: "th:" + b.email } : { error: reg ? "phone_mismatch" : "not_registered" }) });
+  });
   await p.goto(URL); await p.waitForTimeout(600);
-  await step("login page shown when signed out", async () => { await p.waitForSelector("#emailform"); });
+  await step("login page shown when signed out", async () => { await p.waitForSelector("#waform"); });
   await shot("01-login");
 
   await step("admin logs in with password", async () => {
@@ -31,9 +37,10 @@ const OUT = process.env.SHOTS || "/tmp";
     if (!(await p.locator("text=WASH-").count())) throw new Error("alert code not visible");
   });
   await shot("02-admin-alert");
-  await step("admin logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#emailform"); });
+  await step("admin logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#waform"); });
 
   await step("unregistered email is sent to the Google Form", async () => {
+    await p.click("[data-act=auth-mode][data-v=code]");
     await p.fill("#aemail", "wulan@contoh.id"); await p.click("#emailform button[type=submit]");
     await p.waitForSelector("#codeform"); await p.fill("#acode", "000000"); await p.waitForSelector("text=Kode salah");
     await p.fill("#acode", "123456");
@@ -56,7 +63,7 @@ const OUT = process.env.SHOTS || "/tmp";
     if (await p.locator("#tbar:visible").count()) throw new Error("toolbar visible");
   });
   await shot("04-member-home");
-  await step("member logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#emailform"); });
+  await step("member logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#waform"); });
 
   await step("admin selects the applicant and announces", async () => {
     await p.click("[data-act=auth-mode][data-v=admin]"); await p.fill("#admail", "admin@pmi.id"); await p.fill("#adpw", "rahasia123"); await p.click("#adminform button[type=submit]");
@@ -78,10 +85,14 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.waitForSelector("#modal >> text=wulan@contoh.id");
     await p.click("#modal [data-act=close]");
   });
-  await step("admin logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#emailform"); });
+  await step("admin logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#waform"); });
 
-  await step("wulan (code login) sees announcement, card, writes report", async () => {
-    await p.fill("#aemail", "wulan@contoh.id"); await p.click("#emailform button[type=submit]"); await p.fill("#acode", "123456");
+  await step("member login: wrong WA rejected, right WA enters", async () => {
+    await p.fill("#aemail", "wulan@contoh.id"); await p.fill("#awa", "0811111111"); await p.click("#waform button[type=submit]");
+    await p.waitForSelector("text=Nomor WhatsApp tidak cocok");
+    await p.fill("#awa", "0813-5555-4444"); await p.click("#waform button[type=submit]");
+  });
+  await step("wulan sees announcement, card, writes report", async () => {
     await p.waitForSelector("text=Pengumuman anggota terpilih", { timeout: 4000 });
     await p.waitForSelector("text=Selamat, Anda terpilih");
     await p.click("#m-rep [data-act=report]"); await p.fill("#rsum", "Promosi kebersihan di 3 posko pengungsian."); await p.fill("#rm-people", "1250");

@@ -88,7 +88,7 @@ async function uploadPhoto(dataUrl){
   return sb.storage.from("photos").getPublicUrl(path).data.publicUrl}
 
 /* ---------- auth screens ---------- */
-S.auth=S.auth||{mode:"member",step:"email",email:"",err:"",info:"",busy:false,cool:0};
+S.auth=S.auth||{mode:"member",step:"email",email:"",wa:"",err:"",info:"",busy:false,cool:0};
 function vSignin(){
   const A=S.auth;
   const err=A.err?`<p class="err">${esc(A.err)}</p>`:"",info=A.info?`<p class="note">${esc(A.info)}</p>`:"";
@@ -101,12 +101,35 @@ function vSignin(){
   if(A.step==="code")return `<section class="panel authcard" id="authbox">${steps(2)}<div><h1 class="auth-h">Cek email Anda</h1><p class="muted">Masukkan kode yang kami kirim ke <b>${esc(A.email)}</b>. Belum ada? Cek folder spam.</p></div>
      <form class="form one" id="codeform" novalidate><input class="input codein" id="acode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="••••••" aria-label="Kode verifikasi">${err}${info}
      <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
-     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-back">← Ganti email</button><button class="btn sm ghost" data-act="otp-resend" ${A.cool>Date.now()?"disabled":""}>Kirim ulang kode</button></div></section>`;
-  return `<section class="panel authcard" id="authbox">${steps(1)}<div><h1 class="auth-h">Masuk anggota</h1><p class="muted">Untuk relawan &amp; staf WASH PMI. Masukkan email yang Anda pakai saat mendaftar.</p></div>
-     <form class="form one" id="emailform" novalidate><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}" aria-label="Email aktif" style="padding:12px">${err}${info}
-     <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Mengirim kode…":"Lanjut"}</button></form>
-     <div class="note" style="display:flex;flex-direction:column;gap:8px"><span><b style="color:var(--ink)">Belum terdaftar?</b> Isi formulir pendaftaran dulu, lalu masuk di sini dengan email yang sama.</span><a class="btn" href="${esc(formUrl())}" target="_blank" rel="noopener">${I.edit}Isi formulir pendaftaran</a></div>
-     <div style="text-align:center;border-top:1px solid var(--line);padding-top:12px"><button class="btn sm ghost" data-act="auth-mode" data-v="admin">Masuk sebagai admin</button></div></section>`}
+     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-back">← Kembali</button><button class="btn sm ghost" data-act="otp-resend" ${A.cool>Date.now()?"disabled":""}>Kirim ulang kode</button></div></section>`;
+  if(A.mode==="code")return `<section class="panel authcard" id="authbox">${steps(1)}<div><h1 class="auth-h">Masuk dengan kode email</h1><p class="muted">Kami kirim kode ke email Anda.</p></div>
+     <form class="form one" id="emailform" novalidate><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}" aria-label="Email" style="padding:12px">${err}${info}
+     <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Mengirim kode…":"Kirim kode"}</button></form>
+     <div style="text-align:center"><button class="btn sm ghost" data-act="auth-mode" data-v="member">← Masuk dengan email &amp; WhatsApp</button></div></section>`;
+  return `<section class="panel authcard" id="authbox"><div><h1 class="auth-h">Masuk anggota</h1><p class="muted">Pakai email dan nomor WhatsApp yang Anda isi di formulir pendaftaran.</p></div>
+     <form class="form one" id="waform" novalidate>
+       <div class="field"><label for="aemail">Email</label><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}" style="padding:12px"></div>
+       <div class="field"><label for="awa">Nomor WhatsApp</label><input class="input" id="awa" type="tel" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxx" value="${esc(A.wa||"")}" style="padding:12px"></div>
+       ${err}${info}
+       <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
+     <div class="note" style="display:flex;flex-direction:column;gap:8px"><span><b style="color:var(--ink)">Belum terdaftar?</b> Isi formulir pendaftaran dulu, lalu kembali ke sini.</span><a class="btn" href="${esc(formUrl())}" target="_blank" rel="noopener">${I.edit}Isi formulir pendaftaran</a></div>
+     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><button class="btn sm ghost" data-act="auth-mode" data-v="code">Masuk dengan kode email</button><button class="btn sm ghost" data-act="auth-mode" data-v="admin">Masuk sebagai admin</button></div></section>`}
+async function memberLogin(email,wa){
+  const A=S.auth;email=String(email||"").trim().toLowerCase();A.email=email;A.wa=String(wa||"").trim();
+  if(!/^\S+@\S+\.\S+$/.test(email)){A.err="Format email belum benar.";authRender();return}
+  if(A.wa.replace(/\D/g,"").length<9){A.err="Isi nomor WhatsApp lengkap, misalnya 081234567890.";authRender();return}
+  A.busy=true;A.err="";A.info="";authRender();
+  let res,data={};
+  try{res=await fetch(SB_URL+"/functions/v1/member-login",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+SB_KEY},body:JSON.stringify({email,phone:A.wa})});data=await res.json().catch(()=>({}))}
+  catch(e){A.busy=false;A.err="Tidak bisa terhubung ke server. Periksa koneksi internet lalu coba lagi.";authRender();return}
+  if(!res.ok||!data.token_hash){A.busy=false;
+    A.err=data.error==="not_registered"?"Email ini belum terdaftar di roster. Isi formulir pendaftaran dulu dengan email yang sama."
+      :data.error==="phone_mismatch"?"Nomor WhatsApp tidak cocok dengan data pendaftaran untuk email ini."
+      :data.error==="too_many_attempts"?"Terlalu banyak percobaan yang salah. Coba lagi 15 menit lagi, atau hubungi admin roster."
+      :"Gagal masuk. Coba lagi sebentar lagi.";
+    authRender();return}
+  const {error}=await sb.auth.verifyOtp({token_hash:data.token_hash,type:"email"});
+  A.busy=false;if(error){A.err="Gagal masuk: "+error.message;authRender()}}
 document.addEventListener("input",e=>{if(e.target&&e.target.id==="acode"){const d=e.target.value.replace(/\D/g,"");if(d.length===6&&!S.auth.busy)verifyCode(d)}});
 function authRender(){S.view="signin";$("#cp").innerHTML=vSignin();const f=$("#aemail")||$("#acode")||$("#adpw");if(f&&!S.auth.busy)f.focus()}
 const redirectTo=()=>location.origin+location.pathname;

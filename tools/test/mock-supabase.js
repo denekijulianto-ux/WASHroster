@@ -104,7 +104,7 @@ export function createClient() {
       getSession: async () => ({ data: { session } }),
       onAuthStateChange: f => { listeners.push(f); return { data: { subscription: { unsubscribe() {} } } }; },
       signInWithOtp: async ({ email }) => { window.__lastOtpEmail = email; return { error: null }; },
-      verifyOtp: async ({ email, token }) => { if (token !== "123456") return { error: { message: "invalid" } }; let u = users.find(x => x.email === email); if (!u) { u = { id: uuid(), email }; users.push(u); } session = mkSession(u, "otp"); emit("SIGNED_IN"); return { error: null }; },
+      verifyOtp: async ({ email, token, token_hash }) => { if (token_hash && token_hash.startsWith("th:")) { email = token_hash.slice(3); token = "123456"; } if (token !== "123456") return { error: { message: "invalid" } }; let u = users.find(x => x.email === email); if (!u) { u = { id: uuid(), email }; users.push(u); } session = mkSession(u, "otp"); emit("SIGNED_IN"); return { error: null }; },
       signInWithPassword: async ({ email, password }) => { const u = users.find(x => x.email === email && x.pw && x.pw === password); if (!u) return { error: { message: "Invalid login" } }; session = mkSession(u, "password"); emit("SIGNED_IN"); return { data: { user: { id: u.id } }, error: null }; },
       updateUser: async ({ password }) => { const u = users.find(x => x.id === uid()); u.pw = password; return { error: null }; },
       resetPasswordForEmail: async () => ({ error: null }),

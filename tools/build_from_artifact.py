@@ -129,6 +129,7 @@ rep('    case"exportrep":exportReports();break;', '''    case"exportrep":exportR
     case"admin-rm":adminRm(b.dataset.u,b);break;
     case"logout":await sb.auth.signOut();S.viewAs="admin";toast("Anda sudah keluar");break;''')
 rep('''document.addEventListener("submit",e=>{if(e.target.id==="askform"){''', '''document.addEventListener("submit",e=>{
+  if(e.target.id==="waform"){e.preventDefault();memberLogin($("#aemail").value,$("#awa").value);return}
   if(e.target.id==="emailform"){e.preventDefault();sendOtp($("#aemail").value);return}
   if(e.target.id==="codeform"){e.preventDefault();verifyCode($("#acode").value);return}
   if(e.target.id==="adminform"){e.preventDefault();adminLogin($("#admail").value,$("#adpw").value);return}
