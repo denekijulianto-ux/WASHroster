@@ -90,7 +90,7 @@ create table if not exists public.settings (
   updated_at timestamptz not null default now()
 );
 
-create or replace function public.touch_updated_at() returns trigger language plpgsql as $$
+create or replace function public.touch_updated_at() returns trigger language plpgsql set search_path = public as $$
 begin new.updated_at := now(); return new; end $$;
 drop trigger if exists members_touch on public.members;
 create trigger members_touch before update on public.members for each row execute function public.touch_updated_at();
@@ -310,6 +310,15 @@ grant execute on function public.save_my_profile(jsonb), public.set_my_status(te
   public.submit_report(uuid,jsonb), public.add_admin(text), public.remove_admin(uuid),
   public.is_admin(), public.is_admin_account(), public.my_member_id() to authenticated;
 grant execute on function public.app_settings() to anon, authenticated;
+revoke execute on function public.is_admin(), public.is_admin_account(), public.my_member_id() from public, anon;
+
+-- Hak akses tabel untuk API. Proyek Supabase baru tidak lagi memberikannya otomatis.
+-- Batas sebenarnya tetap diatur Row Level Security di atas.
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on public.members, public.alerts, public.candidates, public.reports, public.settings to authenticated;
+grant select on public.admins to authenticated;
+grant all on public.members, public.alerts, public.candidates, public.reports, public.settings, public.admins to service_role;
+revoke all on public.members, public.alerts, public.candidates, public.reports, public.settings, public.admins from anon;
 
 -- ---------- Penyimpanan foto profil ----------------------------------
 -- Bucket publik: foto dibuka lewat URL acak yang tidak bisa ditebak.
@@ -317,8 +326,9 @@ grant execute on function public.app_settings() to anon, authenticated;
 insert into storage.buckets (id, name, public) values ('photos', 'photos', true)
 on conflict (id) do update set public = true;
 
+-- Tanpa kebijakan SELECT: file bucket publik tetap bisa dibuka lewat URL-nya,
+-- tetapi daftar isi bucket tidak bisa ditelusuri orang lain.
 drop policy if exists photos_read on storage.objects;
-create policy photos_read on storage.objects for select using (bucket_id = 'photos');
 drop policy if exists photos_insert on storage.objects;
 create policy photos_insert on storage.objects for insert to authenticated
   with check (bucket_id = 'photos' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin()));
