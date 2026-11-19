@@ -71,6 +71,7 @@ async function loadAll(){
   const app=s.find(x=>x.key==="app"),sh=s.find(x=>x.key==="sheet");
   const ik=s.find(x=>x.key==="intake");
   S.settings={app:app?app.value:{}};S.sync=sh?sh.value:null;S.intake=ik?ik.value:null;
+  const wg=s.find(x=>x.key==="wa_group");S.waGroup=wg&&wg.value&&wg.value.url||"";
   const ss=s.find(x=>x.key==="sheet_source");S.sheetSource=ss?ss.value:null;
   S.uid=myId||"me";S.mcp=S.isAdmin?{}:null;
   S.meProfile={email:(S.session.user.email||"").toLowerCase(),name:""};
@@ -357,8 +358,8 @@ function bcRender(){
   const st=bcState,a=Object.assign({id:st.aid},S.alerts[st.aid]||{});
   const rec=bcRecipients(st.kind,a,st.aud),g=gmailLinks(st.kind,a,rec);
   const ch=st.channels,auto=!!(ch&&ch.email);
-  const title=st.kind==="alert"?"Kirim alert lewat email":"Kirim pengumuman lewat email";
-  openModal(title,st.result?bcResultHTML(st.result):`
+  const title=st.kind==="alert"?"Kirim alert ke anggota":"Kirim pengumuman ke anggota";
+  openModal(title,st.result?bcResultHTML(st.result)+waGroupBox(st.kind,a):waGroupBox(st.kind,a)+`<span class="lbl-up" style="margin-top:4px">Email</span>
    ${st.kind==="alert"?`<div class="field"><label for="bc-aud">Penerima</label><select class="input" id="bc-aud"><option value="all" ${st.aud==="all"?"selected":""}>Semua anggota roster (${members().length})</option><option value="role" ${st.aud==="role"?"selected":""}>Hanya profil ${esc(a.role)} (${bcRecipients("alert",a,"role").length})</option><option value="available" ${st.aud==="available"?"selected":""}>Hanya yang berstatus tersedia (${bcRecipients("alert",a,"available").length})</option></select></div>`:`<p class="muted">Dikirim ke semua anggota roster.</p>`}
    <div class="lbox"><b>${g.emails.length} alamat email</b><span class="muted" style="font-size:.84rem">Dikirim sebagai BCC, jadi alamat anggota tidak saling terlihat.</span></div>
    ${!ch?`<div class="skeleton" style="height:56px"></div>`:auto?`<div class="note" style="background:var(--ok-soft);color:var(--ok)"><b>Pengiriman otomatis aktif.</b> Tekan <b>Kirim sekarang</b>; email langsung terkirim dari server.</div>`
@@ -451,4 +452,20 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]
     closeModal();syncSheet(true);return}
   if(a==="src-off"){e.preventDefault();e.stopImmediatePropagation();if(!arm(b,"srcoff","Tekan lagi untuk memutuskan"))return;closeModal();
     await write("delete","settings","sheet_source").catch(()=>{});S.sheetSource=null;toast("Spreadsheet diputus. Anggota yang sudah masuk tetap ada.");render();return}
+},true);
+
+/* ---------- grup WhatsApp Roster (gratis: admin membagikan teks ke grup dari WhatsApp sendiri) ---------- */
+const waShareHref=t=>"https://wa.me/?text="+encodeURIComponent(t);
+function waGroupBox(kind,a){
+  const t=bcText(kind,a);
+  return `<div class="lbox" id="wagbox"><b>${I.wa}Grup WhatsApp Roster <span class="pill ok" style="margin-left:4px">Gratis</span></b>
+    <span class="muted" style="font-size:.84rem">Tekan <b>Kirim ke grup WhatsApp</b>, pilih grup Roster WASH, lalu tekan kirim. Satu pesan sampai ke semua anggota grup.</span>
+    <div class="row" style="gap:6px"><a class="btn wa primary" id="wagshare" target="_blank" rel="noopener" href="${esc(waShareHref(t))}">${I.wa}Kirim ke grup WhatsApp</a><button class="btn sm" data-act="wag-copy" data-k="${kind}" data-a="${a.id}">${I.copy}Salin teks</button>${S.waGroup?`<a class="btn sm ghost" target="_blank" rel="noopener" href="${esc(S.waGroup)}">Buka grup</a>`:""}</div>
+    <div class="field"><label for="wagurl">Link undangan grup (opsional, tampil di beranda anggota agar bisa bergabung)</label><div class="row" style="flex-wrap:nowrap;gap:6px"><input class="input" id="wagurl" placeholder="https://chat.whatsapp.com/…" value="${esc(S.waGroup||"")}"><button class="btn sm" data-act="wag-save">Simpan</button></div></div></div>`}
+function waGroupJoinHTML(){if(!S.waGroup)return"";return `<section class="card" id="m-wag"><div class="card-b row" style="justify-content:space-between;gap:10px"><div><b>Grup WhatsApp Roster WASH</b><div class="muted" style="font-size:.84rem">Alert dan pengumuman juga dikirim ke grup ini.</div></div><a class="btn wa" target="_blank" rel="noopener" href="${esc(S.waGroup)}">${I.wa}Gabung grup</a></div></section>`}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="wag-copy"){e.preventDefault();e.stopImmediatePropagation();const al=Object.assign({id:b.dataset.a},S.alerts[b.dataset.a]||{});try{await navigator.clipboard.writeText(bcText(b.dataset.k,al));toast("Teks disalin. Tempel di grup WhatsApp.")}catch(err){toast("Gagal menyalin.")}return}
+  if(a==="wag-save"){e.preventDefault();e.stopImmediatePropagation();const v=($("#wagurl").value||"").trim();
+    if(v&&!/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+/.test(v)){toast("Link grup harus diawali https://chat.whatsapp.com/");return}
+    try{if(v)await write("set","settings","wa_group",{url:v});else await write("delete","settings","wa_group");S.waGroup=v;toast(v?"Link grup disimpan. Anggota melihat tombol Gabung grup.":"Link grup dihapus.")}catch(err){toast("Gagal menyimpan.")}return}
 },true);

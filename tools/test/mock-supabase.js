@@ -23,7 +23,7 @@ const canRead = (t, r) => {
   if (t === "members") return r.user_id === uid();
   if (t === "candidates") return (me && r.member_id === me.id) || r.state === "terpilih";
   if (t === "reports") return me && r.member_id === me.id;
-  if (t === "settings") return r.key === "app";
+  if (t === "settings") return r.key === "app" || (r.key === "wa_group" && !!me);
   if (t === "admins") return r.user_id === uid();
   if (t === "broadcasts") return false;
   return false;

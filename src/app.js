@@ -261,6 +261,7 @@ function vMemberHome(){
     <p class="lead" style="margin:0;font-size:.86rem">No. MIS (SIAMO): <b class="mono">${esc(m.mis||"belum diisi")}</b>${m.mis?"":` · <a href="#" data-act="edit-self" style="color:inherit">lengkapi</a>`}</p>
     <p class="lead" style="margin:0;font-size:.86rem">${I.mail.replace("<svg",'<svg width="14" height="14" style="vertical-align:-2px"')} ${esc(m.email||"-")}${m.phone?" · WA +"+waNum(m.phone):""}</p>
     <div class="row" style="gap:8px">${pill(MSTAT,m.status)}<button class="btn sm" data-act="edit-self">${I.edit}Ubah profil</button>${m.status==="tersedia"?`<button class="btn sm" data-act="avail" data-v="tidak">Tandai tidak tersedia</button>`:m.status==="tidak"?`<button class="btn sm" data-act="avail" data-v="tersedia">Tandai tersedia</button>`:""}</div></div></div></section>
+  ${typeof waGroupJoinHTML==="function"?waGroupJoinHTML():""}
   ${anns.length?`<section class="card" id="m-ann"><div class="card-h"><h2>Pengumuman anggota terpilih</h2>${anns.filter(a=>a.announce.at>(S.annSeen||0)).length?`<span class="pill teal">${anns.filter(a=>a.announce.at>(S.annSeen||0)).length} baru</span>`:""}</div><div class="card-b">${anns.slice(0,6).map(a=>annCard(a,{member:true})).join("")}</div></section>`:""}
   <div class="grid2">
     <section class="card" id="m-alert"><div class="card-h"><h2>Alert tersedia</h2><span class="pill teal">${inv.length+open.length}</span></div><div class="card-b">
@@ -364,7 +365,7 @@ function alertInspector(a){
   const cs=cands(a),n=s=>cs.filter(c=>c.state===s).length;
   return `<div class="isec"><div class="row" style="gap:8px"><span class="mono muted">${esc(a.code)}</span>${pill(ASTAT,a.status)}</div><h2>${esc(a.role)} — ${esc(a.title)}</h2>
     <a class="btn primary" href="#seleksi-${a.id}">${I.check}Buka seleksi kandidat</a>
-    <button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.mail}Kirim alert lewat email ke semua anggota</button>${bcHistory(a.id)}
+    <button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.mail}Kirim alert ke semua anggota (email / grup WA)</button>${bcHistory(a.id)}
     <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-alert" data-a="${a.id}">${I.edit}Ubah</button>${a.status==="terbuka"?`<button class="btn sm" data-act="astatus" data-v="ditutup" data-a="${a.id}">Tutup alert</button>`:`<button class="btn sm" data-act="astatus" data-v="terbuka" data-a="${a.id}">Buka kembali</button>`}<button class="btn sm ghost danger" data-act="del-alert" data-a="${a.id}">Hapus</button></div></div>
    <div class="isec"><span class="lbl-up">Penugasan</span><dl class="kv"><dt>Jenis penugasan</dt><dd>${KINDS[kindOf(a)]}</dd><dt>${subLabel(a)}</dt><dd>${esc(a.emergency||"-")}</dd><dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Mulai</dt><dd>${fmtLong(a.start)}</dd><dt>Selesai</dt><dd>${fmtLong(endOf(a))}</dd><dt>Durasi</dt><dd>${a.dur} hari</dd><dt>Batas konfirmasi</dt><dd>${fmtLong(a.deadline)}</dd><dt>Kebutuhan</dt><dd>${a.slots||1} orang</dd></dl>${a.desc?`<p class="muted" style="font-size:.86rem;white-space:pre-line">${esc(a.desc)}</p>`:""}</div>
    <div class="isec"><span class="lbl-up">Kandidat</span><dl class="kv"><dt>Diundang</dt><dd>${n("diundang")}</dd><dt>Mengajukan diri</dt><dd>${n("mengajukan")}</dd><dt>Bersedia</dt><dd>${n("bersedia")}</dd><dt>Menolak</dt><dd>${n("menolak")}</dd><dt>Terpilih</dt><dd>${n("terpilih")} / ${a.slots||1}</dd></dl></div>`}
@@ -437,7 +438,7 @@ function selCenter(a){
 function selInspector(a){
   if(!a)return ihint("Pilih alert di panel kiri untuk mulai menyeleksi kandidat.");
   const emails=cands(a).filter(c=>c.state!=="menolak"&&S.members[c.mid]&&S.members[c.mid].email).map(c=>S.members[c.mid].email);
-  return annAdminBox(a)+`<div class="isec"><span class="lbl-up">Kirim ke semua anggota</span><button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.mail}Kirim alert lewat email</button>${a.announce&&a.announce.at?`<button class="btn" data-act="bc-open" data-k="announce" data-a="${a.id}">${I.mail}Kirim pengumuman lewat email</button>`:""}${bcHistory(a.id)}</div><div class="isec"><span class="lbl-up">Kirim massal ke kandidat</span>${emails.length?`<a class="btn" target="_blank" rel="noopener" href="${esc(mailHref("","Alert penugasan WASH: "+a.code+" "+a.role,inviteText(a,null),emails.join(",")))}">${I.mail}Email semua kandidat (BCC, ${emails.length})</a><button class="btn sm ghost" data-act="copyemails" data-a="${a.id}">${I.copy}Salin daftar email</button>`:`<p class="muted">Belum ada kandidat dengan email.</p>`}<p class="note">WhatsApp tidak bisa dikirim massal dari halaman ini. Gunakan tombol WA per orang di tabel kandidat.</p></div>
+  return annAdminBox(a)+`<div class="isec"><span class="lbl-up">Kirim ke semua anggota</span><button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.mail}Kirim alert (email / grup WA)</button>${a.announce&&a.announce.at?`<button class="btn" data-act="bc-open" data-k="announce" data-a="${a.id}">${I.mail}Kirim pengumuman (email / grup WA)</button>`:""}${bcHistory(a.id)}</div><div class="isec"><span class="lbl-up">Kirim massal ke kandidat</span>${emails.length?`<a class="btn" target="_blank" rel="noopener" href="${esc(mailHref("","Alert penugasan WASH: "+a.code+" "+a.role,inviteText(a,null),emails.join(",")))}">${I.mail}Email semua kandidat (BCC, ${emails.length})</a><button class="btn sm ghost" data-act="copyemails" data-a="${a.id}">${I.copy}Salin daftar email</button>`:`<p class="muted">Belum ada kandidat dengan email.</p>`}<p class="note">Untuk WhatsApp massal gratis, pakai <b>Kirim alert (email / grup WA)</b> lalu kirim ke grup WhatsApp Roster. Tombol WA per orang ada di tabel kandidat.</p></div>
    <div class="isec"><div class="spread"><span class="lbl-up">Teks alert</span><button class="btn sm ghost" data-act="copyalert" data-a="${a.id}">${I.copy}Salin</button></div><div class="msgbox">${esc(inviteText(a,null))}</div></div>
    <div class="isec"><div class="row" style="gap:6px"><button class="btn sm" data-act="edit-alert" data-a="${a.id}">${I.edit}Ubah alert</button>${a.status==="terbuka"?`<button class="btn sm" data-act="astatus" data-v="ditutup" data-a="${a.id}">Tutup alert</button>`:`<button class="btn sm" data-act="astatus" data-v="terbuka" data-a="${a.id}">Buka kembali</button>`}</div></div>`}
 function vSelTab(){
@@ -1109,6 +1110,7 @@ async function loadAll(){
   const app=s.find(x=>x.key==="app"),sh=s.find(x=>x.key==="sheet");
   const ik=s.find(x=>x.key==="intake");
   S.settings={app:app?app.value:{}};S.sync=sh?sh.value:null;S.intake=ik?ik.value:null;
+  const wg=s.find(x=>x.key==="wa_group");S.waGroup=wg&&wg.value&&wg.value.url||"";
   const ss=s.find(x=>x.key==="sheet_source");S.sheetSource=ss?ss.value:null;
   S.uid=myId||"me";S.mcp=S.isAdmin?{}:null;
   S.meProfile={email:(S.session.user.email||"").toLowerCase(),name:""};
@@ -1395,8 +1397,8 @@ function bcRender(){
   const st=bcState,a=Object.assign({id:st.aid},S.alerts[st.aid]||{});
   const rec=bcRecipients(st.kind,a,st.aud),g=gmailLinks(st.kind,a,rec);
   const ch=st.channels,auto=!!(ch&&ch.email);
-  const title=st.kind==="alert"?"Kirim alert lewat email":"Kirim pengumuman lewat email";
-  openModal(title,st.result?bcResultHTML(st.result):`
+  const title=st.kind==="alert"?"Kirim alert ke anggota":"Kirim pengumuman ke anggota";
+  openModal(title,st.result?bcResultHTML(st.result)+waGroupBox(st.kind,a):waGroupBox(st.kind,a)+`<span class="lbl-up" style="margin-top:4px">Email</span>
    ${st.kind==="alert"?`<div class="field"><label for="bc-aud">Penerima</label><select class="input" id="bc-aud"><option value="all" ${st.aud==="all"?"selected":""}>Semua anggota roster (${members().length})</option><option value="role" ${st.aud==="role"?"selected":""}>Hanya profil ${esc(a.role)} (${bcRecipients("alert",a,"role").length})</option><option value="available" ${st.aud==="available"?"selected":""}>Hanya yang berstatus tersedia (${bcRecipients("alert",a,"available").length})</option></select></div>`:`<p class="muted">Dikirim ke semua anggota roster.</p>`}
    <div class="lbox"><b>${g.emails.length} alamat email</b><span class="muted" style="font-size:.84rem">Dikirim sebagai BCC, jadi alamat anggota tidak saling terlihat.</span></div>
    ${!ch?`<div class="skeleton" style="height:56px"></div>`:auto?`<div class="note" style="background:var(--ok-soft);color:var(--ok)"><b>Pengiriman otomatis aktif.</b> Tekan <b>Kirim sekarang</b>; email langsung terkirim dari server.</div>`
@@ -1489,6 +1491,22 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]
     closeModal();syncSheet(true);return}
   if(a==="src-off"){e.preventDefault();e.stopImmediatePropagation();if(!arm(b,"srcoff","Tekan lagi untuk memutuskan"))return;closeModal();
     await write("delete","settings","sheet_source").catch(()=>{});S.sheetSource=null;toast("Spreadsheet diputus. Anggota yang sudah masuk tetap ada.");render();return}
+},true);
+
+/* ---------- grup WhatsApp Roster (gratis: admin membagikan teks ke grup dari WhatsApp sendiri) ---------- */
+const waShareHref=t=>"https://wa.me/?text="+encodeURIComponent(t);
+function waGroupBox(kind,a){
+  const t=bcText(kind,a);
+  return `<div class="lbox" id="wagbox"><b>${I.wa}Grup WhatsApp Roster <span class="pill ok" style="margin-left:4px">Gratis</span></b>
+    <span class="muted" style="font-size:.84rem">Tekan <b>Kirim ke grup WhatsApp</b>, pilih grup Roster WASH, lalu tekan kirim. Satu pesan sampai ke semua anggota grup.</span>
+    <div class="row" style="gap:6px"><a class="btn wa primary" id="wagshare" target="_blank" rel="noopener" href="${esc(waShareHref(t))}">${I.wa}Kirim ke grup WhatsApp</a><button class="btn sm" data-act="wag-copy" data-k="${kind}" data-a="${a.id}">${I.copy}Salin teks</button>${S.waGroup?`<a class="btn sm ghost" target="_blank" rel="noopener" href="${esc(S.waGroup)}">Buka grup</a>`:""}</div>
+    <div class="field"><label for="wagurl">Link undangan grup (opsional, tampil di beranda anggota agar bisa bergabung)</label><div class="row" style="flex-wrap:nowrap;gap:6px"><input class="input" id="wagurl" placeholder="https://chat.whatsapp.com/…" value="${esc(S.waGroup||"")}"><button class="btn sm" data-act="wag-save">Simpan</button></div></div></div>`}
+function waGroupJoinHTML(){if(!S.waGroup)return"";return `<section class="card" id="m-wag"><div class="card-b row" style="justify-content:space-between;gap:10px"><div><b>Grup WhatsApp Roster WASH</b><div class="muted" style="font-size:.84rem">Alert dan pengumuman juga dikirim ke grup ini.</div></div><a class="btn wa" target="_blank" rel="noopener" href="${esc(S.waGroup)}">${I.wa}Gabung grup</a></div></section>`}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="wag-copy"){e.preventDefault();e.stopImmediatePropagation();const al=Object.assign({id:b.dataset.a},S.alerts[b.dataset.a]||{});try{await navigator.clipboard.writeText(bcText(b.dataset.k,al));toast("Teks disalin. Tempel di grup WhatsApp.")}catch(err){toast("Gagal menyalin.")}return}
+  if(a==="wag-save"){e.preventDefault();e.stopImmediatePropagation();const v=($("#wagurl").value||"").trim();
+    if(v&&!/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+/.test(v)){toast("Link grup harus diawali https://chat.whatsapp.com/");return}
+    try{if(v)await write("set","settings","wa_group",{url:v});else await write("delete","settings","wa_group");S.waGroup=v;toast(v?"Link grup disimpan. Anggota melihat tombol Gabung grup.":"Link grup dihapus.")}catch(err){toast("Gagal menyimpan.")}return}
 },true);
 
 boot();
