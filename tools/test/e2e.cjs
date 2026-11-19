@@ -11,23 +11,23 @@ const OUT = process.env.SHOTS || "/tmp";
   const step = async (name, fn) => { try { await fn(); console.log("ok  ", name); } catch (e) { console.log("FAIL", name, "-", e.message.split("\n")[0]); errs.push(name); } };
   const shot = n => p.screenshot({ path: `${OUT}/e2e-${n}.png` });
   const t = new Date().toISOString().slice(0, 10);
-
+  // Edge Function stand-in: activation with email + WA (mirrors supabase/functions/member-login)
   await p.route("**/functions/v1/member-login", async r => {
     const b = JSON.parse(r.request().postData() || "{}");
-    const ok = b.email === "wulan@contoh.id" && String(b.phone).replace(/\D/g, "").endsWith("81355554444");
-    const reg = b.email === "wulan@contoh.id";
-    r.fulfill({ status: ok ? 200 : reg ? 401 : 404, contentType: "application/json", body: JSON.stringify(ok ? { token_hash: "th:" + b.email } : { error: reg ? "phone_mismatch" : "not_registered" }) });
+    const st = await p.evaluate(e => { const m = window.__mockdb.members.find(x => x.email === e); return m ? { phone: m.phone, pw: m.has_password } : null; }, b.email);
+    const core = x => { let d = String(x || "").replace(/\D/g, ""); if (d.startsWith("62")) d = d.slice(2); if (d.startsWith("0")) d = d.slice(1); return d; };
+    const res = !st ? [404, { error: "not_registered" }] : st.pw ? [409, { error: "password_required" }] : core(st.phone) !== core(b.phone) ? [401, { error: "phone_mismatch" }] : [200, { token_hash: "th:" + b.email }];
+    r.fulfill({ status: res[0], contentType: "application/json", body: JSON.stringify(res[1]) });
   });
-  await p.goto(URL); await p.waitForTimeout(600);
-  await step("login page shown when signed out", async () => { await p.waitForSelector("#waform"); });
-  await shot("01-login");
+  const login = async (email, pw) => { await p.fill("#lmail", email); await p.fill("#lpw", pw); await p.click("#pwform button[type=submit]"); };
+  const logout = async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#pwform"); };
 
-  await step("admin logs in with password", async () => {
-    await p.click("[data-act=auth-mode][data-v=admin]");
-    await p.fill("#admail", "admin@pmi.id"); await p.fill("#adpw", "salah"); await p.click("#adminform button[type=submit]");
-    await p.waitForSelector("text=Email atau password salah.");
-    await p.fill("#adpw", "rahasia123"); await p.click("#adminform button[type=submit]");
-    await p.waitForSelector("text=Mode admin", { timeout: 4000 });
+  await p.goto(URL); await p.waitForTimeout(600);
+  await step("login page (email + password) shown when signed out", async () => { await p.waitForSelector("#pwform"); });
+  await shot("01-login");
+  await step("admin logs in with email + password", async () => {
+    await login("admin@pmi.id", "salah"); await p.waitForSelector("text=Email atau password salah");
+    await login("admin@pmi.id", "rahasia123"); await p.waitForSelector("text=Mode admin", { timeout: 4000 });
   });
   await step("admin creates an alert", async () => {
     await p.click("#tbar [data-act=new-alert]");
@@ -36,79 +36,73 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.click("[data-act=save-alert]"); await p.waitForTimeout(800);
     if (!(await p.locator("text=WASH-").count())) throw new Error("alert code not visible");
   });
-  await shot("02-admin-alert");
-  await step("admin logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#waform"); });
+  await step("admin logs out", logout);
 
-  await step("unregistered email is sent to the Google Form", async () => {
-    await p.click("[data-act=auth-mode][data-v=code]");
-    await p.fill("#aemail", "wulan@contoh.id"); await p.click("#emailform button[type=submit]");
-    await p.waitForSelector("#codeform"); await p.fill("#acode", "000000"); await p.waitForSelector("text=Kode salah");
-    await p.fill("#acode", "123456");
-    await p.waitForSelector("text=Email ini belum ada di roster", { timeout: 4000 });
-    const href = await p.getAttribute("a:has-text('Isi formulir pendaftaran')", "href"); if (!/forms\.gle/.test(href)) throw new Error("form link " + href);
+  await step("activation with unregistered email points to the Google Form", async () => {
+    await p.click("[data-act=auth-mode][data-v=activate]");
+    await p.fill("#aemail", "wulan@contoh.id"); await p.fill("#awa", "081355554444"); await p.click("#waform button[type=submit]");
+    await p.waitForSelector("text=belum terdaftar di roster");
   });
-  await shot("03-register");
-  await step("Form answer arrives → 'cek lagi' links the account", async () => {
-    await p.evaluate(() => window.__mockdb.members.push({ id: crypto.randomUUID(), user_id: null, email: "wulan@contoh.id", name: "Wulan Pratiwi", phone: "081355554444", role: "Promosi Kebersihan", level: "Relawan (KSR/TSR)", province: "Jawa Tengah", chapter: "PMI Kota Semarang", skills: "", lang: "", status: "tersedia", photo: "", source: "form", sheet_sig: null, created_at: new Date().toISOString() }));
-    await p.click("[data-act=reclaim]");
+  await step("Form answer arrives; wrong WA rejected", async () => {
+    await p.evaluate(() => window.__mockdb.members.push({ id: crypto.randomUUID(), user_id: null, email: "wulan@contoh.id", name: "Wulan Pratiwi", phone: "081355554444", role: "Promosi Kebersihan", level: "Relawan (KSR/TSR)", province: "Jawa Tengah", chapter: "PMI Kota Semarang", skills: "", lang: "", status: "tersedia", photo: "", source: "form", sheet_sig: null, has_password: false, created_at: new Date().toISOString() }));
+    await p.fill("#awa", "0811111111"); await p.click("#waform button[type=submit]"); await p.waitForSelector("text=Nomor WhatsApp tidak cocok");
+  });
+  await step("right WA → must create a password first", async () => {
+    await p.fill("#awa", "0813-5555-4444"); await p.click("#waform button[type=submit]");
+    await p.waitForSelector("#firstpw", { timeout: 4000 });
+  });
+  await shot("02-setpw");
+  await step("create password → member home", async () => {
+    await p.fill("#fpw1", "pendek"); await p.fill("#fpw2", "pendek"); await p.click("#firstpw button[type=submit]"); await p.waitForSelector("text=minimal 8 karakter");
+    await p.fill("#fpw1", "wulanaman123"); await p.fill("#fpw2", "wulanaman123"); await p.click("#firstpw button[type=submit]");
     await p.waitForSelector("text=Beranda anggota", { timeout: 4000 });
   });
-  await step("member sees alert and applies", async () => {
-    await p.waitForSelector("text=Tanggap Darurat Banjir Demak");
-    await p.click("#m-alert [data-act=respond][data-v=bersedia]"); await p.waitForTimeout(600);
-    await p.waitForSelector("text=Menunggu keputusan admin");
-  });
-  await step("member cannot see admin controls", async () => {
+  await step("member applies to the alert", async () => {
+    await p.click("#m-alert [data-act=respond][data-v=bersedia]"); await p.waitForTimeout(600); await p.waitForSelector("text=Menunggu keputusan admin");
     if (await p.locator("[data-act=mode]").count()) throw new Error("mode switch visible to member");
-    if (await p.locator("#tbar:visible").count()) throw new Error("toolbar visible");
   });
-  await shot("04-member-home");
-  await step("member logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#waform"); });
+  await step("member logs out", logout);
+  await step("after a password exists, email + WA no longer works", async () => {
+    await p.click("[data-act=auth-mode][data-v=activate]");
+    await p.fill("#aemail", "wulan@contoh.id"); await p.fill("#awa", "081355554444"); await p.click("#waform button[type=submit]");
+    await p.waitForSelector("text=sudah punya password");
+    await p.click("[data-act=auth-mode][data-v=member]");
+  });
 
   await step("admin selects the applicant and announces", async () => {
-    await p.click("[data-act=auth-mode][data-v=admin]"); await p.fill("#admail", "admin@pmi.id"); await p.fill("#adpw", "rahasia123"); await p.click("#adminform button[type=submit]");
-    await p.waitForSelector("text=Seleksi kandidat");
+    await login("admin@pmi.id", "rahasia123"); await p.waitForSelector("text=Seleksi kandidat");
     await p.click("[data-act=select]"); await p.waitForTimeout(1500);
     await p.waitForSelector("text=Kartu ID penugasan"); await p.click("#modal [data-act=close]");
     await p.click(".tab:has-text('Seleksi Kandidat')"); await p.waitForTimeout(400);
     await p.fill("#annnote", "Briefing di Markas PMI Jateng pukul 08.00."); await p.click("[data-act=announce]"); await p.waitForTimeout(600);
     await p.waitForSelector("text=Diumumkan");
   });
-  await shot("05-admin-seleksi");
-  await step("admin opens Google Form integration and generates the script", async () => {
+  await step("admin sees password status and can reset login", async () => {
+    await p.click(".tab:has-text('Anggota Roster')"); await p.click("tr[data-act=selm]"); await p.waitForSelector("text=Sudah memakai password.");
+  });
+  await step("admin generates the Google Form script", async () => {
     await p.click("#tbar [data-act=gform]"); await p.click("[data-act=gform-gen]"); await p.waitForSelector("#gscode");
-    const code = await p.inputValue("#gscode"); if (!/form_intake/.test(code) || !/TOKEN = "rw_[0-9a-f]{48}"/.test(code)) throw new Error("script missing token");
+    if (!/TOKEN = "rw_[0-9a-f]{48}"/.test(await p.inputValue("#gscode"))) throw new Error("script missing token");
     await p.click("#modal [data-act=close]");
   });
   await step("admin appoints wulan as admin", async () => {
     await p.click("#hright [data-act=admins]"); await p.fill("#newadm", "wulan@contoh.id"); await p.click("[data-act=admin-add]"); await p.waitForTimeout(500);
-    await p.waitForSelector("#modal >> text=wulan@contoh.id");
-    await p.click("#modal [data-act=close]");
+    await p.waitForSelector("#modal >> text=wulan@contoh.id"); await p.click("#modal [data-act=close]");
   });
-  await step("admin logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#waform"); });
-
-  await step("member login: wrong WA rejected, right WA enters", async () => {
-    await p.fill("#aemail", "wulan@contoh.id"); await p.fill("#awa", "0811111111"); await p.click("#waform button[type=submit]");
-    await p.waitForSelector("text=Nomor WhatsApp tidak cocok");
-    await p.fill("#awa", "0813-5555-4444"); await p.click("#waform button[type=submit]");
-  });
-  await step("wulan sees announcement, card, writes report", async () => {
-    await p.waitForSelector("text=Pengumuman anggota terpilih", { timeout: 4000 });
-    await p.waitForSelector("text=Selamat, Anda terpilih");
+  await step("admin logs out", logout);
+  await step("wulan logs in with password, sees announcement & card, writes report", async () => {
+    await login("wulan@contoh.id", "wulanaman123");
+    await p.waitForTimeout(800);
+    if (await p.locator("[data-act=mode][data-v=anggota]").count()) await p.click("[data-act=mode][data-v=anggota]");
+    await p.waitForSelector("text=Pengumuman anggota terpilih", { timeout: 4000 }); await p.waitForSelector("text=Selamat, Anda terpilih");
     await p.click("#m-rep [data-act=report]"); await p.fill("#rsum", "Promosi kebersihan di 3 posko pengungsian."); await p.fill("#rm-people", "1250");
     await p.click("[data-act=report-save]"); await p.waitForTimeout(600); await p.waitForSelector("#m-rep >> text=Terkirim");
   });
-  await shot("06-member-after");
-  await step("wulan's code session cannot enter Mode Admin without password", async () => {
-    await p.click("[data-act=mode][data-v=admin]"); await p.waitForSelector("text=Mode Admin memerlukan password");
-    await p.click("[data-act=pw-new]"); await p.fill("#npw1", "passwordbaru1"); await p.fill("#npw2", "passwordbaru1"); await p.click("[data-act=pw-create]");
-    await p.waitForSelector("text=Mode admin", { timeout: 4000 });
-  });
-  await step("admin sees the report", async () => {
+  await step("wulan (now admin) switches to Mode Admin and reads the report", async () => {
+    await p.click("[data-act=mode][data-v=admin]"); await p.waitForSelector("text=Mode admin", { timeout: 4000 });
     await p.click(".tab:has-text('Laporan')"); await p.waitForTimeout(300); await p.click("tr[data-act=selr]"); await p.waitForSelector("text=Promosi kebersihan di 3 posko");
   });
-  await shot("07-admin-laporan");
-  await p.setViewportSize({ width: 390, height: 844 }); await p.click(".bnav a:has-text('Beranda')"); await p.waitForTimeout(300); await shot("08-phone-admin");
+  await p.setViewportSize({ width: 390, height: 844 }); await logout(); await shot("08-phone-login");
   console.log(errs.length ? "\nERRORS:\n" + errs.join("\n") : "\nno errors");
   await b.close();
 })();

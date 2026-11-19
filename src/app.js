@@ -165,6 +165,7 @@ function render(){
     work.classList.add("solo");lp.innerHTML="";rp.innerHTML="";
     if(!S.session){if(S.view==="signin"&&cp.querySelector("#authbox"))return;S.view="signin";cp.innerHTML=vSignin()}
     else if(!S.members[S.uid]){if(S.view==="register"&&cp.querySelector("#mform"))return;S.view="register";cp.innerHTML=vRegister()}
+    else if(!S.isAdminAcct&&S.members[S.uid]&&S.members[S.uid].account&&!S.members[S.uid].hasPassword&&!(typeof hasPasswordSession==="function"&&hasPasswordSession())){S.view="setpw";if(!cp.querySelector("#firstpw"))cp.innerHTML=vSetPassword()}
     else{S.view="portal";if(S.annSeen==null){try{S.annSeen=+localStorage.getItem("rosterwash.annSeen")||0}catch(e){S.annSeen=0}}cp.innerHTML=vMemberHome();const latest=announced()[0];if(latest){try{localStorage.setItem("rosterwash.annSeen",String(latest.announce.at))}catch(e){}}}
   }else{
     S.view="";const t=tabOf(S.route);
@@ -313,7 +314,7 @@ function memberInspector(){
   if(!m)return ihint("Pilih anggota di tabel untuk melihat detail, kontak, dan riwayat penugasannya.")+regSummary();
   const hist=[];alerts().forEach(a=>{const c=cands(a).find(c=>c.mid===id);if(c)hist.push({a,c})});
   return `<div class="isec"><div class="row" style="align-items:flex-start;gap:14px;flex-wrap:nowrap">${av(m,"lg")}<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="row" style="gap:6px">${pill(MSTAT,m.status)}${pill(SRC,srcOf(m))}${sampleTag(m)}</div><h2>${esc(m.name)}</h2><p class="muted" style="font-size:.86rem">${esc(m.role)}<br>${esc(m.level||"")}</p></div></div>
-   <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-member" data-m="${id}">${I.edit}Ubah</button><button class="btn sm ghost danger" data-act="del-member" data-m="${id}">Hapus</button></div></div>
+   <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-member" data-m="${id}">${I.edit}Ubah</button><button class="btn sm ghost danger" data-act="del-member" data-m="${id}">Hapus</button></div>${m.account?`<div class="row" style="gap:6px;align-items:center"><span class="muted" style="font-size:.8rem">${m.hasPassword?"Sudah memakai password.":"Belum membuat password."}</span>${m.hasPassword?`<button class="btn sm" data-act="reset-login" data-m="${id}">Reset akses login</button>`:""}</div>`:""}</div>
    <div class="isec"><span class="lbl-up">Kontak</span>${m.phone?`<div class="copyline"><span style="width:16px;color:#128C4A;display:inline-flex">${I.wa}</span><code>+${waNum(m.phone)}</code><button class="btn sm ghost" data-act="copytxt" data-t="+${waNum(m.phone)}">${I.copy}</button></div>`:""}${m.email?`<div class="copyline"><span style="width:16px;display:inline-flex">${I.mail}</span><code>${esc(m.email)}</code><button class="btn sm ghost" data-act="copytxt" data-t="${esc(m.email)}">${I.copy}</button></div>`:""}${!m.phone&&!m.email?`<p class="muted">Belum ada kontak.</p>`:""}</div>
    <div class="isec"><span class="lbl-up">Profil</span><dl class="kv"><dt>Provinsi</dt><dd>${esc(m.province||"-")}</dd><dt>Markas PMI</dt><dd>${esc(m.chapter||"-")}</dd><dt>Keahlian</dt><dd>${esc(m.skills||"-")}</dd><dt>Bahasa</dt><dd>${esc(m.lang||"-")}</dd><dt>Terdaftar</dt><dd>${m.createdAt?stampT(m.createdAt):"-"}</dd></dl></div>
    <div class="isec"><span class="lbl-up">Riwayat alert (${hist.length})</span>${hist.length?`<div class="dlist">${hist.map(({a,c})=>`<div class="ditem"><div><div class="t">${esc(a.title)}</div><div class="s mono">${esc(a.code)} · ${fmt(a.start)} · ${a.dur} hari</div></div>${pill(CSTAT,c.state)}${c.state==="terpilih"?`<button class="btn sm" data-act="card" data-a="${a.id}" data-m="${id}">Kartu</button>`:""}</div>`).join("")}</div>`:`<p class="muted">Belum pernah diundang.</p>`}</div>`}
@@ -1048,7 +1049,7 @@ async function loadAll(){
   const me=S.session.user.id;
   S.admins=ad;S.isAdminAcct=ad.some(x=>x.user_id===me);S.isAdmin=S.isAdminAcct&&hasPasswordSession();
   const members={};let myId=null;
-  m.forEach(x=>{members[x.id]={name:x.name,email:x.email||"",phone:x.phone,role:x.role,level:x.level,province:x.province,chapter:x.chapter,skills:x.skills,lang:x.lang,status:x.status,photo:x.photo,source:x.source,account:!!x.user_id,sheetSig:x.sheet_sig,createdAt:msT(x.created_at),reports:{}};if(x.user_id===me)myId=x.id});
+  m.forEach(x=>{members[x.id]={name:x.name,email:x.email||"",phone:x.phone,role:x.role,level:x.level,province:x.province,chapter:x.chapter,skills:x.skills,lang:x.lang,status:x.status,photo:x.photo,source:x.source,account:!!x.user_id,hasPassword:!!x.has_password,sheetSig:x.sheet_sig,createdAt:msT(x.created_at),reports:{}};if(x.user_id===me)myId=x.id});
   r.forEach(x=>{const mm=members[x.member_id];if(mm)mm.reports[x.alert_id]={summary:x.summary,metrics:x.metrics||{},cond:x.cond,issues:x.issues,recs:x.recs,seen:x.seen,at:msT(x.submitted_at)}});
   const alerts={};
   a.forEach(x=>{alerts[x.id]={code:x.code,title:x.title,emergency:x.emergency,role:x.role,location:x.location,start:x.start_date,dur:x.dur,deadline:x.deadline,slots:x.slots,desc:x.description,status:x.status,createdAt:msT(x.created_at),announce:x.announce_at?{at:msT(x.announce_at),note:x.announce_note}:null,cand:{}}});
@@ -1080,11 +1081,7 @@ function vSignin(){
   const A=S.auth;
   const err=A.err?`<p class="err">${esc(A.err)}</p>`:"",info=A.info?`<p class="note">${esc(A.info)}</p>`:"";
   const steps=n=>`<div class="auth-steps"><span class="${n===1?"on":""}">1 · Email</span><span class="${n===2?"on":""}">2 · Kode dari email</span></div>`;
-  if(A.mode==="admin")return `<section class="panel authcard" id="authbox"><div><p class="eyebrow">Khusus admin</p><h1 class="auth-h">Masuk admin</h1></div>
-     <form class="form one" id="adminform" novalidate><div class="field"><label for="admail">Email</label><input class="input" id="admail" type="email" autocomplete="username" value="${esc(A.email)}"></div>
-     <div class="field"><label for="adpw">Password</label><input class="input" id="adpw" type="password" autocomplete="current-password"></div>${err}${info}
-     <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
-     <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-mode" data-v="member">← Kembali</button><button class="btn sm ghost" data-act="pw-forgot">Lupa password?</button></div></section>`;
+  if(A.mode==="admin")A.mode="member";
   if(A.step==="code")return `<section class="panel authcard" id="authbox">${steps(2)}<div><h1 class="auth-h">Cek email Anda</h1><p class="muted">Masukkan kode yang kami kirim ke <b>${esc(A.email)}</b>. Belum ada? Cek folder spam.</p></div>
      <form class="form one" id="codeform" novalidate><input class="input codein" id="acode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="••••••" aria-label="Kode verifikasi">${err}${info}
      <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
@@ -1093,14 +1090,48 @@ function vSignin(){
      <form class="form one" id="emailform" novalidate><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}" aria-label="Email" style="padding:12px">${err}${info}
      <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Mengirim kode…":"Kirim kode"}</button></form>
      <div style="text-align:center"><button class="btn sm ghost" data-act="auth-mode" data-v="member">← Masuk dengan email &amp; WhatsApp</button></div></section>`;
-  return `<section class="panel authcard" id="authbox"><div><h1 class="auth-h">Masuk anggota</h1><p class="muted">Pakai email dan nomor WhatsApp yang Anda isi di formulir pendaftaran.</p></div>
+  if(A.mode==="activate")return `<section class="panel authcard" id="authbox"><div><p class="eyebrow">Pertama kali masuk</p><h1 class="auth-h">Aktifkan akun</h1><p class="muted">Masukkan email dan nomor WhatsApp yang Anda isi di formulir pendaftaran. Setelah itu Anda membuat password sendiri.</p></div>
      <form class="form one" id="waform" novalidate>
        <div class="field"><label for="aemail">Email</label><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}" style="padding:12px"></div>
        <div class="field"><label for="awa">Nomor WhatsApp</label><input class="input" id="awa" type="tel" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxx" value="${esc(A.wa||"")}" style="padding:12px"></div>
        ${err}${info}
-       <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
+       <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Lanjut buat password"}</button></form>
      <div class="note" style="display:flex;flex-direction:column;gap:8px"><span><b style="color:var(--ink)">Belum terdaftar?</b> Isi formulir pendaftaran dulu, lalu kembali ke sini.</span><a class="btn" href="${esc(formUrl())}" target="_blank" rel="noopener">${I.edit}Isi formulir pendaftaran</a></div>
-     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><button class="btn sm ghost" data-act="auth-mode" data-v="code">Masuk dengan kode email</button><button class="btn sm ghost" data-act="auth-mode" data-v="admin">Masuk sebagai admin</button></div></section>`}
+     <div style="text-align:center"><button class="btn sm ghost" data-act="auth-mode" data-v="member">← Sudah punya password? Masuk</button></div></section>`;
+  return `<section class="panel authcard" id="authbox"><div><h1 class="auth-h">Masuk</h1><p class="muted">Untuk anggota roster dan admin WASH PMI.</p></div>
+     <form class="form one" id="pwform" novalidate>
+       <div class="field"><label for="lmail">Email</label><input class="input" id="lmail" type="email" autocomplete="username" placeholder="nama@contoh.id" value="${esc(A.email)}" style="padding:12px"></div>
+       <div class="field"><label for="lpw">Password</label><input class="input" id="lpw" type="password" autocomplete="current-password" style="padding:12px"></div>
+       ${err}${info}
+       <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
+     <div class="note" style="display:flex;flex-direction:column;gap:8px"><span><b style="color:var(--ink)">Pertama kali masuk?</b> Sudah mengisi formulir pendaftaran tapi belum punya password.</span><button class="btn" data-act="auth-mode" data-v="activate">Aktifkan akun</button></div>
+     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><a class="btn sm ghost" href="${esc(formUrl())}" target="_blank" rel="noopener">Belum terdaftar? Isi formulir</a><button class="btn sm ghost" data-act="pw-help">Lupa password?</button></div></section>`}
+async function passwordLogin(email,pw){
+  const A=S.auth;email=String(email||"").trim().toLowerCase();A.email=email;
+  if(!/^\S+@\S+\.\S+$/.test(email)||!pw){A.err="Isi email dan password.";authRender();return}
+  A.busy=true;A.err="";A.info="";authRender();
+  const {error}=await sb.auth.signInWithPassword({email,password:pw});
+  A.busy=false;
+  if(error){A.err=/confirm/i.test(error.message)?"Akun ini belum aktif. Tekan Aktifkan akun di bawah.":"Email atau password salah. Kalau ini pertama kali Anda masuk, tekan Aktifkan akun.";authRender();return}
+  S.viewAs="admin";try{localStorage.setItem("rosterwash.mode","admin")}catch(e){}}
+function vSetPassword(){
+  const m=S.members[S.uid]||{};
+  return `<section class="panel authcard"><div><p class="eyebrow">Langkah terakhir</p><h1 class="auth-h">Buat password Anda</h1><p class="muted">Halo ${esc(m.name||"")}. Mulai sekarang Anda masuk dengan email dan password ini, jadi orang lain tidak bisa masuk ke akun Anda.</p></div>
+    <div class="mailchip">${I.mail}<span>${esc(m.email||(S.session&&S.session.user.email)||"")}</span></div>
+    <form class="form one" id="firstpw" novalidate>
+      <div class="field"><label for="fpw1">Password baru (minimal 8 karakter)</label><input class="input" id="fpw1" type="password" autocomplete="new-password" style="padding:12px"></div>
+      <div class="field"><label for="fpw2">Ulangi password</label><input class="input" id="fpw2" type="password" autocomplete="new-password" style="padding:12px"></div>
+      <p class="err" id="fpwerr" hidden></p>
+      <button class="btn primary big" type="submit">Simpan password &amp; masuk</button></form>
+    <div style="text-align:center"><button class="btn sm ghost" data-act="logout">Keluar</button></div></section>`}
+async function pwFirst(){
+  const a=$("#fpw1").value,b2=$("#fpw2").value,er=$("#fpwerr"),fail=t=>{er.textContent=t;er.hidden=false};
+  if(a.length<8)return fail("Password minimal 8 karakter.");if(a!==b2)return fail("Kedua password tidak sama.");
+  const btn=$("#firstpw button[type=submit]");btn.disabled=true;btn.textContent="Menyimpan…";
+  const {error}=await sb.auth.updateUser({password:a});
+  if(error){btn.disabled=false;btn.textContent="Simpan password & masuk";return fail("Password gagal disimpan: "+error.message)}
+  const r=await sb.rpc("mark_my_password_set");if(r.error){btn.disabled=false;btn.textContent="Simpan password & masuk";return fail("Gagal menyimpan: "+r.error.message)}
+  toast("Password tersimpan. Berikutnya masuk dengan email & password.");await loadAll()}
 async function memberLogin(email,wa){
   const A=S.auth;email=String(email||"").trim().toLowerCase();A.email=email;A.wa=String(wa||"").trim();
   if(!/^\S+@\S+\.\S+$/.test(email)){A.err="Format email belum benar.";authRender();return}
@@ -1110,7 +1141,8 @@ async function memberLogin(email,wa){
   try{res=await fetch(SB_URL+"/functions/v1/member-login",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+SB_KEY},body:JSON.stringify({email,phone:A.wa})});data=await res.json().catch(()=>({}))}
   catch(e){A.busy=false;A.err="Tidak bisa terhubung ke server. Periksa koneksi internet lalu coba lagi.";authRender();return}
   if(!res.ok||!data.token_hash){A.busy=false;
-    A.err=data.error==="not_registered"?"Email ini belum terdaftar di roster. Isi formulir pendaftaran dulu dengan email yang sama."
+    A.err=data.error==="password_required"?"Akun ini sudah punya password. Masuk dengan email & password, atau minta admin mereset akses bila lupa."
+      :data.error==="not_registered"?"Email ini belum terdaftar di roster. Isi formulir pendaftaran dulu dengan email yang sama."
       :data.error==="phone_mismatch"?"Nomor WhatsApp tidak cocok dengan data pendaftaran untuk email ini."
       :data.error==="too_many_attempts"?"Terlalu banyak percobaan yang salah. Coba lagi 15 menit lagi, atau hubungi admin roster."
       :"Gagal masuk. Coba lagi sebentar lagi.";
@@ -1279,6 +1311,12 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]
   else if(a==="gform-copy"){copy($("#gscode").value,"Kode Apps Script")}
   else if(a==="gform-url"){const v=($("#gfurl").value||"").trim();if(!/^https:\/\//.test(v)){toast("Link harus diawali https://");return}await write("set","settings","app",Object.assign({},S.settings.app||{},{formUrl:v})).catch(()=>{});toast("Link formulir disimpan")}
   else if(a==="reclaim"){b.disabled=true;b.textContent="Memeriksa…";try{await sb.rpc("claim_my_member")}catch(err){}await loadAll();if(!S.members[S.uid]||S.uid==="me")toast("Belum ditemukan. Pastikan emailnya sama, lalu coba lagi sebentar lagi.")}
+});
+
+document.addEventListener("submit",e=>{if(e.target.id==="pwform"){e.preventDefault();passwordLogin($("#lmail").value,$("#lpw").value)}else if(e.target.id==="firstpw"){e.preventDefault();pwFirst()}});
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="pw-help"){S.auth.err="";S.auth.info="Lupa password? Hubungi admin roster untuk mereset akses Anda. Setelah itu tekan Aktifkan akun dan buat password baru.";authRender()}
+  else if(a==="reset-login"){if(!arm(b,"rl"+b.dataset.m,"Tekan lagi untuk mereset"))return;const {error}=await sb.from("members").update({has_password:false}).eq("id",b.dataset.m);if(error){toast("Gagal mereset: "+error.message);return}toast("Akses login direset. Anggota bisa mengaktifkan ulang dengan email & nomor WA.");loadAll()}
 });
 
 boot();

@@ -29,7 +29,7 @@ const canRead = (t, r) => {
 };
 const err = (message, code = "P0001") => ({ data: null, error: { message, code } });
 const defaults = {
-  members: () => ({ id: uuid(), user_id: null, email: null, phone: "", role: "Suplai Air Bersih", level: "Relawan (KSR/TSR)", province: "", chapter: "", skills: "", lang: "", status: "tersedia", photo: "", source: "manual", sheet_sig: null, created_at: now() }),
+  members: () => ({ id: uuid(), user_id: null, email: null, phone: "", role: "Suplai Air Bersih", level: "Relawan (KSR/TSR)", province: "", chapter: "", skills: "", lang: "", status: "tersedia", photo: "", source: "manual", sheet_sig: null, has_password: false, created_at: now() }),
   alerts: () => ({ id: uuid(), emergency: "", slots: 1, description: "", status: "terbuka", announce_at: null, announce_note: "", created_at: now() }),
   candidates: () => ({ self_response: false, invited_at: null, answered_at: null, email_at: null, wa_at: null, card_no: null, selected_at: null, name: null, thumb: null }),
   reports: () => ({ seen: false, submitted_at: now(), metrics: {} }),
@@ -89,6 +89,7 @@ const rpcs = {
     let r = db.reports.find(x => x.alert_id === p_alert && x.member_id === m.id); if (!r) { r = Object.assign(defaults.reports(), { alert_id: p_alert, member_id: m.id }); db.reports.push(r); }
     Object.assign(r, { summary: p.summary, metrics: p.metrics || {}, cond: p.cond || "baik", issues: p.issues || "", recs: p.recs || "", seen: false, submitted_at: now() }); return { data: null, error: null };
   },
+  mark_my_password_set() { const m = myMember(); if (m) m.has_password = true; return { data: null, error: null }; },
   claim_my_member() { if (!uid()) return { data: false, error: null }; if (myMember()) return { data: true, error: null }; const m = db.members.find(r => !r.user_id && (r.email || "").toLowerCase() === session.user.email.toLowerCase()); if (m) m.user_id = uid(); return { data: !!m, error: null }; },
   set_intake_token() { if (!isAdmin()) return err("Hanya admin"); const s = db.settings.find(x => x.key === "intake"); if (s) s.value.token_set_at = now(); else db.settings.push({ key: "intake", value: { token_set_at: now(), count: 0 } }); return { data: null, error: null }; },
   add_admin({ p_email }) { if (!isAdmin()) return err("Hanya admin"); const u = users.find(x => x.email === p_email.toLowerCase()); if (!u) return err("Email ini belum pernah masuk ke aplikasi. Minta orang tersebut masuk sekali dengan kode email, lalu coba lagi."); if (!db.admins.find(a => a.user_id === u.id)) db.admins.push({ user_id: u.id, email: u.email, created_at: now() }); return { data: null, error: null }; },

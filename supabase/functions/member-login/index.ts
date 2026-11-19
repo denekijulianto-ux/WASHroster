@@ -1,4 +1,5 @@
-// Roster WASH PMI — masuk anggota dengan email + nomor WhatsApp (tanpa kirim email).
+// Roster WASH PMI — aktivasi akun anggota dengan email + nomor WhatsApp (tanpa kirim email).
+// Hanya untuk akun yang BELUM membuat password; setelah itu anggota masuk dengan email + password.
 // Cocokkan email & nomor WA dengan data roster (dari Google Form), lalu buat token
 // masuk sekali pakai yang ditukar aplikasi menjadi sesi (supabase.auth.verifyOtp).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -42,11 +43,13 @@ Deno.serve(async (req) => {
     .eq("email", email).eq("ok", false).gte("at", since);
   if ((fails ?? 0) >= MAX_FAILS) return json({ error: "too_many_attempts" }, 429);
 
-  const { data: member } = await admin.from("members").select("id, email, phone").eq("email", email).maybeSingle();
+  const { data: member } = await admin.from("members").select("id, email, phone, has_password").eq("email", email).maybeSingle();
   if (!member) {
     await admin.from("login_attempts").insert({ email, ok: false });
     return json({ error: "not_registered" }, 404);
   }
+  // Akun yang sudah memakai password hanya bisa masuk dengan password.
+  if (member.has_password) return json({ error: "password_required" }, 409);
   if (corePhone(member.phone) !== phone) {
     await admin.from("login_attempts").insert({ email, ok: false });
     return json({ error: "phone_mismatch" }, 401);
