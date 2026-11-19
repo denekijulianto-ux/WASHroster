@@ -203,6 +203,17 @@ const OUT = process.env.SHOTS || "/tmp";
     const first = await p.$eval(".dt tbody tr b", x => x.textContent); if (first !== "Fasil Ahli") throw new Error("candidate table first: " + first);
     await shot("09-relevance");
   });
+  await step("member summary, match reasons and recommendations", async () => {
+    await p.click(".tab:has-text('Beranda')"); await p.waitForSelector("text=Rekomendasi anggota untuk alert terbuka");
+    await p.click(".tab:has-text('Anggota Roster')"); await p.click("tr[data-act=selm]:has-text('Respon Cepat')");
+    await p.waitForSelector("text=Ringkasan profil"); await p.waitForSelector("text=Kecocokan dengan penugasan tersedia");
+    await p.waitForSelector(".recrow >> text=Cocok karena");
+    const row = p.locator(".recrow:has-text('Tanggap Darurat Banjir Demak')");
+    await row.locator("[data-act=rec-inv]").click(); await p.waitForTimeout(700);
+    const st = await p.evaluate(() => { const db = window.__mockdb, m = db.members.find(x => x.name === "Respon Cepat"), a = db.alerts.find(x => x.title === "Tanggap Darurat Banjir Demak"); const c = db.candidates.find(c => c.member_id === m.id && c.alert_id === a.id); return c && c.state; });
+    if (st !== "diundang") throw new Error("not invited: " + st);
+    await shot("10-member-summary");
+  });
   await step("profile origin: Partner National Societies / IFRC / Markas Pusat", async () => {
     await p.click("#tbar [data-act=new-member]"); await p.fill("#mname", "Sam PNS"); await p.fill("#mphone", "081399990000");
     await p.selectOption("#mchapk", "pns"); await p.waitForSelector("#mchapl >> text=Nama perhimpunan"); await p.fill("#mchap", "American Red Cross");

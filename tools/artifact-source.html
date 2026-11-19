@@ -259,6 +259,13 @@ textarea.input{min-height:90px;resize:vertical}
 .pick .match{font-size:.72rem;font-weight:600;color:var(--teal)}
 .score{flex:none;display:inline-grid;place-items:center;min-width:34px;height:26px;padding:0 6px;border-radius:8px;font:700 .8rem/1 var(--mono,ui-monospace,monospace);border:1px solid var(--line)}
 .score.hi{background:var(--teal);color:var(--teal-ink);border-color:transparent}.score.mid{background:var(--teal-soft);color:var(--ink)}.score.lo{color:var(--muted)}
+.recrow{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.recrow:first-of-type{border-top:0}
+.recbody{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.recbody b{font-size:.88rem}.recbody .clicky{cursor:pointer}.recbody .clicky:hover{color:var(--teal)}
+.recact{flex:none}
+.recgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.recalert{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
 .why{display:block;font-size:.72rem;color:var(--muted);line-height:1.3;margin-top:2px;white-space:normal}
 .toggle{display:inline-flex;gap:6px;align-items:center;font-size:.84rem;font-weight:600}
 .toggle input{accent-color:var(--teal)}
@@ -697,6 +704,7 @@ function vAdminHome(){
       ${dupNotice()}</div></section>
     <section class="card"><div class="card-h"><h2>Alert terbuka</h2><a class="btn sm" href="#alert">Semua alert</a></div><div class="card-b">${open.length?`<div class="alerts">${open.slice(0,4).map(a=>alertCard(a)).join("")}</div>`:`<p class="muted">Tidak ada alert terbuka.</p><div><button class="btn primary sm" data-act="new-alert">${I.plus}Buat alert</button></div>`}</div></section>
   </div>
+  ${recCard()}
   <div class="grid2">
     <section class="card"><div class="card-h"><h2>Seleksi kandidat</h2><span class="pill teal">${pend.length} menunggu keputusan</span></div><div class="card-b">${pend.length?`<div class="dlist">${pend.slice(0,8).map(({a,c})=>{const m=S.members[c.mid];if(!m)return"";const mm=Object.assign({id:c.mid},m);return `<div class="ditem">${av(mm,"sm")}<div><div class="t">${esc(m.name)}</div><div class="s">${pill(CSTAT,c.state)} ${esc(a.code)} · ${esc(a.role)}</div></div><div class="row" style="gap:6px;flex-wrap:nowrap"><a class="btn sm" href="#seleksi-${a.id}">Detail</a><button class="btn sm primary" data-act="select" data-a="${a.id}" data-m="${c.mid}" ${m.status==="ditugaskan"?"disabled":""}>Pilih</button></div></div>`}).join("")}</div>`:`<p class="muted">Tidak ada jawaban anggota yang menunggu keputusan.</p>`}${open.length?`<div><a class="btn sm" href="#seleksi">Buka seleksi kandidat</a></div>`:""}</div></section>
     <section class="card"><div class="card-h"><h2>Penugasan berlangsung</h2><a class="btn sm" href="#kartu">Kartu ID</a></div><div class="card-b">${depList(live,{card:true})}</div></section>
@@ -796,6 +804,8 @@ function memberInspector(){
   const hist=[];alerts().forEach(a=>{const c=cands(a).find(c=>c.mid===id);if(c)hist.push({a,c})});
   return `<div class="isec"><div class="row" style="align-items:flex-start;gap:14px;flex-wrap:nowrap">${av(m,"lg")}<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="row" style="gap:6px">${pill(MSTAT,m.status)}${pill(SRC,srcOf(m))}${sampleTag(m)}</div><h2>${esc(m.name)}</h2><p class="muted" style="font-size:.86rem">${esc(m.role)}<br>${esc(m.level||"")}</p></div></div>
    <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-member" data-m="${id}">${I.edit}Ubah</button><button class="btn sm ghost danger" data-act="del-member" data-m="${id}">Hapus</button></div>${m.account?`<div class="row" style="gap:6px;align-items:center"><span class="muted" style="font-size:.8rem">${m.hasPassword?"Sudah memakai password.":"Belum membuat password."}</span>${m.hasPassword?`<button class="btn sm" data-act="reset-login" data-m="${id}">Reset akses login</button>`:""}</div>`:""}</div>
+   <div class="isec"><span class="lbl-up">Ringkasan profil</span>${memberSummary(m)}</div>
+   ${(()=>{const ms=matchesFor(m);return ms.length?`<div class="isec"><span class="lbl-up">Kecocokan dengan penugasan tersedia (${ms.length})</span>${ms.map(x=>recRow(m,x.a,x.r,true)).join("")}</div>`:`<div class="isec"><span class="lbl-up">Kecocokan dengan penugasan</span><p class="muted" style="font-size:.86rem">Belum ada alert terbuka. Kecocokan muncul otomatis saat ada alert baru.</p></div>`})()}
    <div class="isec"><span class="lbl-up">Kontak</span>${m.phone?`<div class="copyline"><span style="width:16px;color:#128C4A;display:inline-flex">${I.wa}</span><code>+${waNum(m.phone)}</code><button class="btn sm ghost" data-act="copytxt" data-t="+${waNum(m.phone)}">${I.copy}</button></div>`:""}${m.email?`<div class="copyline"><span style="width:16px;display:inline-flex">${I.mail}</span><code>${esc(m.email)}</code><button class="btn sm ghost" data-act="copytxt" data-t="${esc(m.email)}">${I.copy}</button></div>`:""}${!m.phone&&!m.email?`<p class="muted">Belum ada kontak.</p>`:""}</div>
    <div class="isec"><span class="lbl-up">Profil</span><dl class="kv"><dt>No. MIS (SIAMO)</dt><dd class="mono">${esc(m.mis||"-")}</dd><dt>Provinsi</dt><dd>${esc(m.province||"-")}</dd><dt>Asal Markas PMI</dt><dd>${esc(m.chapter||"-")}</dd><dt>Keahlian</dt><dd>${esc(m.skills||"-")}</dd><dt>Bahasa</dt><dd>${esc(m.lang||"-")}</dd><dt>Terdaftar</dt><dd>${m.createdAt?stampT(m.createdAt):"-"}</dd></dl></div>
    <div class="isec"><span class="lbl-up">Riwayat alert (${hist.length})</span>${hist.length?`<div class="dlist">${hist.map(({a,c})=>`<div class="ditem"><div><div class="t">${esc(a.title)}</div><div class="s mono">${esc(a.code)} · ${fmt(a.start)} · ${a.dur} hari</div></div>${pill(CSTAT,c.state)}${c.state==="terpilih"?`<button class="btn sm" data-act="card" data-a="${a.id}" data-m="${id}">Kartu</button>`:""}</div>`).join("")}</div>`:`<p class="muted">Belum pernah diundang.</p>`}</div>`}
@@ -830,6 +840,7 @@ function alertInspector(a){
   const cs=cands(a),n=s=>cs.filter(c=>c.state===s).length;
   return `<div class="isec"><div class="row" style="gap:8px"><span class="mono muted">${esc(a.code)}</span>${pill(ASTAT,a.status)}</div><h2>${esc(a.role)} — ${esc(a.title)}</h2>
     <a class="btn primary" href="#seleksi-${a.id}">${I.check}Buka seleksi kandidat</a>
+    ${a.status==="terbuka"?(()=>{const rec=recommendFor(a,5);return `<div style="display:flex;flex-direction:column;gap:2px;margin-top:4px"><span class="lbl-up">Rekomendasi anggota</span>${rec.length?rec.map(x=>recRow(x.m,a,x.r)).join(""):`<p class="muted" style="font-size:.84rem">Tidak ada rekomendasi baru.</p>`}</div>`})():""}
     <button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.mail}Kirim alert ke semua anggota (email / grup WA)</button>${bcHistory(a.id)}
     <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-alert" data-a="${a.id}">${I.edit}Ubah</button>${a.status==="terbuka"?`<button class="btn sm" data-act="astatus" data-v="ditutup" data-a="${a.id}">Tutup alert</button>`:`<button class="btn sm" data-act="astatus" data-v="terbuka" data-a="${a.id}">Buka kembali</button>`}<button class="btn sm ghost danger" data-act="del-alert" data-a="${a.id}">Hapus</button></div></div>
    <div class="isec"><span class="lbl-up">Penugasan</span><dl class="kv"><dt>Jenis penugasan</dt><dd>${KINDS[kindOf(a)]}</dd><dt>${subLabel(a)}</dt><dd>${esc(a.emergency||"-")}</dd>${a.focus?`<dt>Bidang WASH</dt><dd>${esc(a.focus)}</dd>`:""}<dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Mulai</dt><dd>${fmtLong(a.start)}</dd><dt>Selesai</dt><dd>${fmtLong(endOf(a))}</dd><dt>Durasi</dt><dd>${a.dur} hari</dd><dt>Batas konfirmasi</dt><dd>${fmtLong(a.deadline)}</dd><dt>Kebutuhan</dt><dd>${a.slots||1} orang</dd></dl>${a.desc?`<p class="muted" style="font-size:.86rem;white-space:pre-line">${esc(a.desc)}</p>`:""}</div>
@@ -876,6 +887,33 @@ function relevance(m,a){
   else if(m.level==="Staf PMI"&&kind==="non_bencana"&&lead){sc+=4}
   if(mine&&mine.self&&(mine.state==="mengajukan"||mine.state==="bersedia")){sc+=5;why.push("Mengajukan diri")}
   return {score:Math.max(0,Math.min(100,sc)),why}}
+const NEG_WHY=["Sedang bertugas","Tidak tersedia","Mungkin sudah pernah ikut"];
+function reasonSentence(r){const pos=r.why.filter(w=>!NEG_WHY.includes(w)),neg=r.why.filter(w=>NEG_WHY.includes(w));
+  return (pos.length?"Cocok karena "+pos.map(w=>w.charAt(0).toLowerCase()+w.slice(1)).join(", ")+".":"Belum ada kecocokan yang menonjol.")+(neg.length?" Perlu diperhatikan: "+neg.map(w=>w.toLowerCase()).join(", ")+".":"")}
+const openAlerts=()=>alerts().filter(a=>a.status==="terbuka"&&(!a.deadline||a.deadline>=today()));
+function matchesFor(m){return openAlerts().map(a=>({a,r:relevance(m,a),c:(a.cand||{})[m.id]})).sort((x,y)=>y.r.score-x.r.score)}
+function recommendFor(a,n){const cm=a.cand||{};return members().filter(m=>!cm[m.id]&&m.status!=="ditugaskan").map(m=>({m,r:relevance(m,a)})).filter(x=>x.r.score>0).sort((x,y)=>y.r.score-x.r.score||x.m.name.localeCompare(y.m.name)).slice(0,n||5)}
+function memberSummary(m){
+  const past=[];alerts().forEach(a=>{const c=(a.cand||{})[m.id];if(c&&c.state==="terpilih")past.push(a)});past.sort((x,y)=>(y.start||"").localeCompare(x.start||""));
+  const nb=past.filter(a=>kindOf(a)==="non_bencana").length,b=past.length-nb,now=past.find(a=>phase(a)!=="selesai"&&a.start<=today());
+  const txt=((m.skills||"")+" "+(m.chapter||"")).toLowerCase(),hb=KW.bencana.filter(k=>kwHit(txt,k)),hn=KW.non_bencana.filter(k=>kwHit(txt,k));
+  const miss=[!m.photo&&"foto",!m.mis&&"No. MIS",!m.chapter&&"asal markas",!m.skills&&"keahlian",!m.phone&&"nomor WA",!m.email&&"email"].filter(Boolean);
+  const reps=Object.keys(m.reports||{}).length;
+  const out=[];
+  const from=[m.chapter,m.province].filter(Boolean).map(esc).join(", ");
+  out.push(`<b>${esc(m.name)}</b> adalah ${esc(m.level||"anggota roster")}${from?" dari "+from:""}, dengan profil WASH <b>${esc(m.role)}</b>.`);
+  out.push(m.skills?`Keahlian &amp; sertifikasi: ${esc(m.skills)}.`:"Belum mengisi keahlian &amp; sertifikasi.");
+  out.push(past.length?`Pengalaman lewat roster: <b>${past.length} penugasan</b> (${b} bencana, ${nb} non bencana), terakhir ${esc(past[0].role)} — ${esc(past[0].title)}.`:"Belum pernah ditugaskan lewat roster.");
+  if(reps)out.push(`Sudah mengirim ${reps} laporan pasca penugasan.`);
+  out.push(m.status==="tersedia"?"Saat ini <b>tersedia</b> untuk ditugaskan.":m.status==="ditugaskan"?`Sedang <b>bertugas</b>${now?" di "+esc(now.code):""}.`:"Sedang menandai diri <b>tidak tersedia</b>.");
+  const str=[];if(hb.length)str.push(`<span class="pill red">Bencana</span> ${esc(hb.slice(0,4).join(", "))}`);if(hn.length)str.push(`<span class="pill teal">Non bencana</span> ${esc(hn.slice(0,4).join(", "))}`);
+  return `<p style="font-size:.9rem;line-height:1.55">${out.join(" ")}</p>${str.length?`<div style="display:flex;flex-direction:column;gap:5px;font-size:.84rem"><span class="muted">Kekuatan terdeteksi:</span>${str.map(x=>`<div>${x}</div>`).join("")}</div>`:""}${miss.length?`<p class="note" style="font-size:.82rem">Data belum lengkap: ${miss.join(", ")}. Profil lengkap membuat rekomendasi lebih tepat.</p>`:""}`}
+function recRow(m,a,r,showAlert){const c=(a.cand||{})[m.id];
+  return `<div class="recrow">${scoreBadge(r)}<div class="recbody">${showAlert?`<b>${esc(a.role)} — ${esc(a.title)}</b><small class="muted mono">${esc(a.code)} · ${KINDS[kindOf(a)]} · ${esc(a.location)}</small>`:`<b class="clicky" data-act="selm" data-m="${m.id}">${esc(m.name)}</b><small class="muted">${esc(m.role)} · ${esc(m.province||"-")}</small>`}<small class="why">${esc(reasonSentence(r))}</small></div>
+    <div class="recact">${c?pill(CSTAT,c.state):`<button class="btn sm primary" data-act="rec-inv" data-a="${a.id}" data-m="${m.id}">Undang</button>`}</div></div>`}
+function recCard(){const as=openAlerts();if(!as.length)return"";
+  return `<section class="card"><div class="card-h"><div><h2>Rekomendasi anggota untuk alert terbuka</h2><p class="muted" style="font-size:.84rem;margin-top:2px">Disusun dari profil, ketersediaan, keahlian, pengalaman, dan provinsi masing-masing anggota.</p></div></div><div class="card-b recgrid">${as.slice(0,4).map(a=>{const rec=recommendFor(a,3);
+    return `<div class="recalert"><div class="spread"><div style="min-width:0"><b>${esc(a.role)} — ${esc(a.title)}</b><div class="muted mono" style="font-size:.76rem">${esc(a.code)} · ${KINDS[kindOf(a)]} · butuh ${a.slots||1}</div></div><a class="btn sm" href="#seleksi-${a.id}">Seleksi</a></div>${rec.length?rec.map(x=>recRow(x.m,a,x.r)).join(""):`<p class="muted" style="font-size:.84rem">Semua anggota yang cocok sudah ada di daftar kandidat.</p>`}</div>`}).join("")}</div></section>`}
 const scoreBadge=r=>`<span class="score ${r.score>=60?"hi":r.score>=35?"mid":"lo"}" title="Skor kecocokan: ${r.why.map(esc).join(" · ")}">${r.score}</span>`;
 function inviteList(a){
   const inv=S.inv;
@@ -1428,6 +1466,7 @@ document.addEventListener("click",async e=>{
     case"af":S.af=b.dataset.v;render();break;
     case"seed":seed();break;
     case"unseed":if(arm(b,"us","Tekan lagi untuk menghapus"))unseed();break;
+    case"rec-inv":{if(!a)break;const nm=(S.members[mid]||{}).name||"Anggota";await write("update","alerts",aid,{cand:{[mid]:{state:"diundang",invitedAt:Date.now()}}}).catch(()=>{});toast(nm+" diundang ke "+a.code+". Kirim alert lewat Email/WA di Seleksi kandidat.");break}
     case"inv-top":{const a=S.alerts[aid]&&Object.assign({id:aid},S.alerts[aid]);if(!a)break;const top=invitePool(a).filter(x=>x.r.score>0).slice(0,10);top.forEach(x=>S.inv.sel.add(x.m.id));render();toast(top.length?top.length+" anggota paling cocok dicentang. Tekan Masukkan ke daftar kandidat.":"Tidak ada anggota yang cocok.");break}
     case"invite":{const add={};S.inv.sel.forEach(id=>add[id]={state:"diundang",invitedAt:Date.now()});const n=S.inv.sel.size;S.inv.sel.clear();await write("update","alerts",aid,{cand:add}).catch(()=>{});toast(n+" anggota masuk daftar kandidat. Kirim alert lewat tombol Email/WhatsApp.");break}
     case"sent":{const k=b.dataset.ch==="wa"?"waAt":"emailAt";write("update","alerts",aid,{cand:{[mid]:{[k]:Date.now()}}}).catch(()=>{});break}
