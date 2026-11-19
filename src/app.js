@@ -132,7 +132,7 @@ function exportRanking(){const rows=[];assignRanking().forEach((x,i)=>x.h.forEac
 function inviteText(a,m){
   return `*ALERT PENUGASAN · ROSTER WASH PMI*\nKode: ${a.code}\nOperasi: ${a.title}\nPosisi: ${a.role}\nLokasi: ${a.location}\nMulai: ${fmtLong(a.start)} (${a.dur} hari, s/d ${fmtLong(endOf(a))})\nBatas konfirmasi: ${fmtLong(a.deadline)}\n\nHalo ${(m&&m.name||"").split(" ")[0]||"Rekan"}, profil Anda sesuai untuk penugasan ini.${a.desc?"\n\n"+a.desc:""}\n\nMohon balas *BERSEDIA* atau *TIDAK* sebelum batas konfirmasi.\n— Koordinator Roster WASH PMI`}
 function selectText(a,m,c){
-  return `*PEMBERITAHUAN PENUGASAN · ROSTER WASH PMI*\n\nSelamat ${m.name}, Anda terpilih untuk penugasan berikut:\nNo. Kartu: ${c.cardNo}\nOperasi: ${a.title}\nPosisi: ${a.role}\nLokasi: ${a.location}\nPeriode: ${fmtLong(a.start)} – ${fmtLong(endOf(a))} (${a.dur} hari)\n\nKartu ID penugasan terlampir. Simpan dan tunjukkan kartu ini saat tiba di posko.\n— Koordinator Roster WASH PMI`}
+  return `*PEMBERITAHUAN PENUGASAN · ROSTER WASH PMI*\n\nSelamat ${m.name}, Anda terpilih untuk penugasan berikut:\nNo. Kartu: ${c.cardNo}\nOperasi: ${a.title}\nPosisi: ${a.role}\nLokasi: ${a.location}\nPeriode: ${fmtLong(a.start)} – ${fmtLong(endOf(a))} (${a.dur} hari)\n\nUnduh kartu ID penugasan Anda di aplikasi Roster WASH (Beranda anggota → Kartu ID saya), lalu tunjukkan saat tiba di posko.\n— Koordinator Roster WASH PMI`}
 const plain=t=>t.replace(/\*/g,"");
 const mailHref=(to,subj,body,bcc)=>"mailto:"+(to?encodeURIComponent(to):"")+"?"+(bcc?"bcc="+encodeURIComponent(bcc)+"&":"")+"subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(plain(body));
 const waHref=(num,text)=>"https://wa.me/"+waNum(num)+"?text="+encodeURIComponent(text);
@@ -300,7 +300,9 @@ function vMemberHome(){
     <section class="card" id="m-dep"><div class="card-h"><h2>Penugasan berlangsung</h2><span class="pill teal">${live.length}</span></div><div class="card-b">${depList(live,{card:true,empty:"Tidak ada penugasan yang sedang berjalan."})}</div></section>
   </div>
   <div class="grid2">
-    <section class="card" id="m-card"><div class="card-h"><h2>Kartu ID saya</h2></div><div class="card-b">${myAsg.length?`<div class="cards">${myAsg.map(({a,c})=>`<button class="tile" data-act="card" data-a="${a.id}" data-m="${S.uid}"><div class="band"><span>${phase(a)==="selesai"?"Selesai":phase(a)==="aktif"?"Bertugas":"Akan berangkat"}</span><span class="mono">${esc(c.cardNo)}</span></div><div class="body"><b>${esc(a.title)}</b><dl class="kv"><dt>Posisi</dt><dd>${esc(a.role)}</dd><dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Periode</dt><dd>${fmt(a.start)} – ${fmt(endOf(a))}</dd></dl></div></button>`).join("")}</div>`:`<p class="muted">Kartu ID muncul di sini begitu Anda terpilih dalam sebuah penugasan.</p>`}</div></section>
+    <section class="card" id="m-card"><div class="card-h"><h2>Kartu ID saya</h2></div><div class="card-b">${myAsg.length?`<div class="cards">${myAsg.map(({a,c})=>`<button class="tile" data-act="card" data-a="${a.id}" data-m="${S.uid}"><div class="band"><span>${phase(a)==="selesai"?"Selesai":phase(a)==="aktif"?"Bertugas":"Akan berangkat"}</span><span class="mono">${esc(c.cardNo)}</span></div><div class="body"><b>${esc(a.title)}</b><dl class="kv"><dt>Posisi</dt><dd>${esc(a.role)}</dd><dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Periode</dt><dd>${fmt(a.start)} – ${fmt(endOf(a))}</dd></dl></div></button>`).join("")}</div>
+    <div class="row" style="gap:8px;margin-top:10px">${myAsg.map(({a,c})=>`<button class="btn sm primary" data-act="dlcard2" data-a="${a.id}" data-m="${S.uid}">${I.dl}Unduh ${esc(c.cardNo)}</button>`).join("")}</div>
+    <p class="muted" style="font-size:.78rem;margin-top:6px">🔒 Kartu ini hanya bisa diunduh oleh Anda.</p>`:`<p class="muted">Kartu ID muncul di sini begitu Anda terpilih dalam sebuah penugasan.</p>`}</div></section>
     <section class="card" id="m-rep"><div class="card-h"><h2>Laporan pasca penugasan</h2></div><div class="card-b">${myAsg.length?`<div class="dlist">${myAsg.map(({a})=>{const r=reps[a.id],ph=phase(a);return `<div class="ditem"><div><div class="t">${esc(a.code)} · ${esc(a.title)}</div><div class="s">${r?"Terkirim "+stampT(r.at):ph==="akan"?"Bisa diisi setelah penugasan dimulai":ph==="selesai"?"Penugasan selesai, laporan belum dikirim":"Penugasan berjalan"}</div></div>${r?pill({x:["Terkirim","ok"]},"x"):ph==="selesai"?pill({x:["Belum dikirim","red"]},"x"):""}${ph!=="akan"?`<button class="btn sm ${r?"":"primary"}" data-act="report" data-a="${a.id}">${r?"Ubah laporan":"Tulis laporan"}</button>`:""}</div>`}).join("")}</div>`:`<p class="muted">Setelah bertugas, isi laporan singkat di sini: kegiatan, capaian, kendala, rekomendasi, dan kondisi Anda.</p>`}</div></section>
   </div>
   ${typeof mapCard==="function"?mapCard():""}`;
@@ -535,13 +537,20 @@ function vCardTab(){
   if(sel){const {a,c:cd,m}=sel,txt=selectText(a,m,cd),subj="Penugasan terkonfirmasi: "+a.code+" "+a.role;
     r=`<div class="isec"><div id="inspcard"><div class="skeleton" style="height:420px;max-width:300px;margin:0 auto"></div></div></div>
      <div class="isec"><dl class="kv"><dt>No. kartu</dt><dd class="mono">${esc(cd.cardNo)}</dd><dt>Nama</dt><dd>${esc(m.name)}</dd><dt>Operasi</dt><dd>${esc(a.title)}</dd></dl>
-     ${S.downloads?`<button class="btn primary" data-act="dlcard2" data-a="${a.id}" data-m="${m.id}">${I.dl}Unduh kartu (PNG)</button>`:`<p class="note">Tekan lama atau klik kanan gambar kartu untuk menyimpannya.</p>`}
+     ${isCardOwner(m.id)&&S.downloads?`<button class="btn primary" data-act="dlcard2" data-a="${a.id}" data-m="${m.id}">${I.dl}Unduh kartu (PNG)</button>`:`<p class="note">🔒 Kartu hanya bisa diunduh oleh pemiliknya (${esc(m.name)}) dari Beranda anggota → Kartu ID saya.</p>`}
      <div class="row" style="gap:6px">${m.phone?`<a class="btn wa" target="_blank" rel="noopener" href="${esc(waHref(m.phone,txt))}" data-act="sent" data-ch="wa" data-a="${a.id}" data-m="${m.id}">${I.wa}Kirim via WA</a>`:""}${m.email?`<a class="btn" target="_blank" rel="noopener" href="${esc(mailHref(m.email,subj,txt))}" data-act="sent" data-ch="email" data-a="${a.id}" data-m="${m.id}">${I.mail}Kirim via email</a>`:""}</div>
-     <p class="note">Unduh kartu dulu, lalu lampirkan gambarnya di chat WhatsApp atau email yang terbuka.</p></div>`}
+     <p class="note">Pesan WhatsApp/email mengarahkan anggota untuk mengunduh kartunya sendiri di aplikasi.</p></div>`}
   return {l,c,r}}
+const isCardOwner=mid=>!!(S.session&&S.uid&&mid===S.uid&&S.members[mid]&&S.members[mid].account);
+function previewURL(cv){const W=cv.width,H=cv.height,o=document.createElement("canvas");o.width=W;o.height=H;const x=o.getContext("2d");x.drawImage(cv,0,0);
+  x.save();x.translate(W/2,H/2);x.rotate(-Math.PI/5);x.textAlign="center";x.font="800 "+Math.round(W*.06)+"px 'Public Sans',sans-serif";
+  for(let i=-4;i<=4;i++){x.fillStyle="rgba(19,35,58,.16)";x.fillText("PRATINJAU · PRATINJAU",0,i*W*.2);}
+  x.restore();x.fillStyle="rgba(19,35,58,.82)";x.fillRect(0,H/2-W*.07,W,W*.14);x.fillStyle="#fff";x.textAlign="center";x.textBaseline="middle";
+  const t="PRATINJAU · hanya pemilik kartu yang dapat mengunduh";let fs=Math.round(W*.045);do{x.font="700 "+fs+"px 'Public Sans',sans-serif";fs--}while(x.measureText(t).width>W*.9&&fs>8);x.fillText(t,W/2,H/2);return o.toDataURL("image/jpeg",.8)}
+const noSave='oncontextmenu="return false" draggable="false" style="-webkit-touch-callout:none;user-select:none"';
 async function cardURL(a,m,c){const k=a.id+"|"+m.id,sig=[m.photo&&m.photo.length,m.name,m.mis,a.role,a.location,a.title,a.start,a.dur,c.cardNo].join("~");S.cardCache=S.cardCache||{};const hit=S.cardCache[k];if(hit&&hit.sig===sig)return hit;const cv=await drawCard(a,m,c);const v={sig,url:cv.toDataURL("image/png"),cv};S.cardCache[k]=v;return v}
 async function paintCardPreview(){const k=S.selCard;if(!k)return;const [aid,mid]=k.split("|");const a=S.alerts[aid],m=S.members[mid];const c=a&&(a.cand||{})[mid];if(!a||!m||!c)return;
-  const v=await cardURL(Object.assign({id:aid},a),Object.assign({id:mid},m),c);const box=$("#inspcard");if(box&&S.selCard===k)box.innerHTML=`<img class="cardimg" src="${v.url}" alt="Kartu penugasan ${esc(m.name)}">`}
+  const v=await cardURL(Object.assign({id:aid},a),Object.assign({id:mid},m),c);const box=$("#inspcard");if(box&&S.selCard===k)box.innerHTML=`<img class="cardimg" ${noSave} src="${isCardOwner(mid)?v.url:previewURL(v.cv)}" alt="Kartu penugasan ${esc(m.name)}">`}
 
 /* ---- tab 5: summary ---- */
 function vSumTab(){
@@ -927,13 +936,13 @@ async function showCard(aid,mid){
   openModal("Kartu ID penugasan",`<div class="cardview"><div id="cardimg"><div class="skeleton" style="width:300px;height:473px"></div></div>
     <div style="display:flex;flex-direction:column;gap:14px;min-width:0"><div><p class="eyebrow">No. kartu</p><p class="mono" style="font-size:1.2rem;font-weight:600">${esc(c.cardNo)}</p></div>
     <div><h3>${esc(m.name)}</h3><p class="muted">${esc(a.role)} · ${esc(a.location)}<br>${fmtLong(a.start)} – ${fmtLong(endOf(a))} (${a.dur} hari)</p></div>
-    <div style="display:flex;flex-direction:column;gap:8px"><button class="btn primary" data-act="dlcard" data-a="${aid}" data-m="${mid}" id="dlbtn">${I.dl}Unduh kartu (PNG)</button>
+    <div style="display:flex;flex-direction:column;gap:8px">${isCardOwner(mid)?`<button class="btn primary big" data-act="dlcard" data-a="${aid}" data-m="${mid}" id="dlbtn">${I.dl}Unduh kartu ID (PNG)</button><span class="muted" style="font-size:.8rem">Resolusi tinggi, siap dicetak atau disimpan di galeri HP.</span>`:`<p class="note">🔒 Kartu hanya bisa diunduh oleh pemiliknya${memberView()?"":` (${esc(m.name)}) dari Beranda anggota → Kartu ID saya`}.</p>`}
     <div class="row" style="gap:8px" ${memberView()?"hidden":""}>${m.phone?`<a class="btn wa" target="_blank" rel="noopener" href="${esc(waHref(m.phone,txt))}" data-act="sent" data-ch="wa" data-a="${aid}" data-m="${mid}">${I.wa}Kirim via WhatsApp</a>`:""}${m.email?`<a class="btn" target="_blank" rel="noopener" href="${esc(mailHref(m.email,subj,txt))}" data-act="sent" data-ch="email" data-a="${aid}" data-m="${mid}">${I.mail}Kirim via email</a>`:""}</div></div>
-    <p class="note" ${memberView()?"hidden":""}>Unduh kartu dulu, lalu lampirkan gambarnya di chat WhatsApp atau email yang terbuka. Pesan dan tautan tidak bisa membawa lampiran secara otomatis.</p>
+    <p class="note" ${memberView()?"hidden":""}>Pesan WhatsApp/email mengarahkan anggota untuk mengunduh kartunya sendiri di aplikasi.</p>
     ${m.phone&&!memberView()?`<div class="copyline"><code>+${waNum(m.phone)}</code><button class="btn sm ghost" data-act="copytxt" data-t="+${waNum(m.phone)}">${I.copy}Salin nomor</button></div>`:""}</div></div>`,"",true);
-  const cv=await drawCard(a,m,c);S.lastCard={cv,name:`kartu-${c.cardNo}.png`};
-  const box=$("#cardimg");if(box){box.innerHTML=`<img src="${cv.toDataURL("image/png")}" alt="Kartu penugasan ${esc(m.name)}">`}
-  if(!S.downloads||memberView()){const b=$("#dlbtn");if(b){b.outerHTML=`<p class="note">Tekan lama atau klik kanan gambar kartu untuk menyimpannya.</p>`}}
+  const own=isCardOwner(mid),cv=await drawCard(a,m,c);S.lastCard=own?{cv,mid,name:`kartu-id-${c.cardNo}.png`}:null;
+  const box=$("#cardimg");if(box){box.innerHTML=`<img ${noSave} src="${own?cv.toDataURL("image/png"):previewURL(cv)}" alt="Kartu penugasan ${esc(m.name)}">`}
+  if(own&&!S.downloads){const b=$("#dlbtn");if(b){b.outerHTML=`<p class="note">Tekan lama gambar kartu lalu pilih Simpan gambar.</p>`}}
 }
 
 /* ---------- actions ---------- */
@@ -1027,7 +1036,7 @@ document.addEventListener("click",async e=>{
       <div class="note" style="display:flex;flex-direction:column;gap:6px"><b style="color:var(--ink)">Membuka pendaftaran untuk relawan</b><span>Di menu <b>Share</b>, bagikan ke organisasi atau email relawan dengan akses yang bisa mengisi, lalu sebarkan tautannya lewat grup WhatsApp. Relawan perlu masuk dengan akun claude.ai.</span></div>
       <p class="muted" style="font-size:.82rem">Halaman ini tidak bisa mengubah akses berbagi sendiri. Pengaturan akses hanya ada di menu Share.</p>`,`<button class="btn primary" data-act="close">Mengerti</button>`);break;
     case"copyalert":copy(inviteText(a,null),"Teks alert");break;
-    case"dlcard2":{const am=S.alerts[aid],mm=S.members[mid];if(!am||!mm||!S.downloads)break;const c=(am.cand||{})[mid];const v=await cardURL(Object.assign({id:aid},am),Object.assign({id:mid},mm),c);v.cv.toBlob(async blob=>{try{await S.downloads.save({filename:`kartu-${c.cardNo}.png`,data:blob});toast("Kartu disimpan")}catch(err){if(err&&err.code!=="declined")toast("Kartu tidak bisa diunduh di sini.")}},"image/png");break}
+    case"dlcard2":{const am=S.alerts[aid],mm=S.members[mid];if(!am||!mm||!S.downloads)break;if(!isCardOwner(mid)){toast("Kartu hanya bisa diunduh oleh pemiliknya.");break}const c=(am.cand||{})[mid];const v=await cardURL(Object.assign({id:aid},am),Object.assign({id:mid},mm),c);v.cv.toBlob(async blob=>{try{await S.downloads.save({filename:`kartu-${c.cardNo}.png`,data:blob});toast("Kartu disimpan")}catch(err){if(err&&err.code!=="declined")toast("Kartu tidak bisa diunduh di sini.")}},"image/png");break}
     case"asisten":$("#drawer").hidden=false;renderChat();setTimeout(()=>{const q=$("#askq");q&&q.focus()},30);break;
     case"chat-close":$("#drawer").hidden=true;break;
     case"sug":ask(b.textContent);break;
@@ -1074,7 +1083,7 @@ document.addEventListener("click",async e=>{
       await write("update","members",mid,{status:"tersedia"}).catch(()=>{});toast("Pilihan dibatalkan");break;
     case"uncand":{const doc=JSON.parse(JSON.stringify(a));const was=doc.cand&&doc.cand[mid];delete doc.cand[mid];await write("set","alerts",aid,doc).catch(()=>{});if(was&&was.state==="terpilih")await write("update","members",mid,{status:"tersedia"}).catch(()=>{});break}
     case"card":showCard(aid,mid);break;
-    case"dlcard":{if(!S.lastCard||!S.downloads)return;S.lastCard.cv.toBlob(async blob=>{try{await S.downloads.save({filename:S.lastCard.name,data:blob});toast("Kartu disimpan")}catch(err){if(err&&err.code!=="declined")toast("Kartu tidak bisa diunduh di sini. Tekan lama gambar untuk menyimpan.")}},"image/png");break}
+    case"dlcard":{if(!S.lastCard||!S.downloads)return;if(!isCardOwner(S.lastCard.mid)){toast("Kartu hanya bisa diunduh oleh pemiliknya.");return}S.lastCard.cv.toBlob(async blob=>{try{await S.downloads.save({filename:S.lastCard.name,data:blob});toast("Kartu disimpan")}catch(err){if(err&&err.code!=="declined")toast("Kartu tidak bisa diunduh di sini. Tekan lama gambar untuk menyimpan.")}},"image/png");break}
   }
 });
 document.addEventListener("input",e=>{
