@@ -279,6 +279,35 @@ textarea.input{min-height:90px;resize:vertical}
 .more summary{cursor:pointer;color:var(--teal);font-weight:600;font-size:.82rem}
 .more[open] summary{margin-bottom:4px}
 .bgkv{font-size:.84rem}
+.mapcard .card-h{flex-wrap:wrap;gap:10px}
+.mapf{display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--teal-soft);padding:4px;border-radius:999px}
+.mapf button{border:0;background:transparent;color:var(--ink);font:600 .8rem/1 inherit;padding:7px 12px;border-radius:999px;cursor:pointer}
+.mapf button.on{background:var(--teal);color:var(--teal-ink);box-shadow:0 2px 8px -3px rgba(23,71,140,.6)}
+.mapgrid2{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(220px,1fr);gap:0}
+.mapbox{position:relative;min-height:420px;border-right:1px solid var(--line)}
+#rmap-slot,.rmap{position:absolute;inset:0}
+.rmap{background:#DCE9F7;border-bottom-left-radius:inherit}
+.maplegend{position:absolute;left:12px;bottom:12px;z-index:500;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.92);border-radius:999px;padding:5px 12px;font-size:.72rem;color:#3A4A60;box-shadow:0 2px 8px -4px rgba(0,0,0,.3)}
+.maplegend span{display:inline-flex;align-items:center;gap:5px}
+.lg{display:inline-block;border-radius:50%;background:#2F78D4;border:2px solid #fff;box-shadow:0 0 0 1px rgba(47,120,212,.35)}
+.lg.s{width:10px;height:10px;opacity:.65}.lg.m{width:15px;height:15px;opacity:.85}.lg.l{width:20px;height:20px;background:#17478C}
+.mbub{display:grid;place-items:center;border-radius:50%;color:#fff;font-weight:700;font-family:inherit;border:2.5px solid #fff;box-shadow:0 6px 16px -6px rgba(23,71,140,.75),0 0 0 6px rgba(47,120,212,.16);transition:transform .15s ease;cursor:pointer}
+.mbub.s{background:rgba(76,147,230,.92)}.mbub.m{background:rgba(47,120,212,.95)}.mbub.l{background:linear-gradient(135deg,#17478C,#2F78D4)}
+.mbub:hover{transform:scale(1.12)}
+.leaflet-tooltip.mtipwrap{border:0;border-radius:12px;padding:0;box-shadow:0 10px 26px -10px rgba(16,40,80,.45)}
+.mtip{padding:10px 12px;font:13px/1.4 inherit;color:#13233A;min-width:190px}
+.mtip b{font-size:14px}.mtip-n{color:#2F78D4;font-weight:600;margin:2px 0 6px}
+.mtip-k{display:flex;gap:10px;font-size:12px;color:#5B6B82}.mtip-k b{font-size:12px;color:#13233A}
+.mtip-r{margin-top:6px;padding-top:6px;border-top:1px solid #E3EAF3;font-size:12px;color:#5B6B82}
+.mtip-h{margin-top:6px;font-size:11px;color:#8A97AA}
+.maplist{max-height:420px;overflow:auto;padding:8px}
+.mrow{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;padding:8px;border-radius:10px;cursor:pointer;text-align:left;color:inherit;font:inherit}
+.mrow:hover{background:var(--teal-soft)}
+.mr-i{flex:none;width:22px;font:600 .74rem/1 var(--mono,ui-monospace,monospace);color:var(--muted);text-align:right}
+.mr-n{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.mr-n b{font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mr-bar{height:6px;border-radius:99px;background:var(--teal-soft);overflow:hidden}.mr-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#4C93E6,#17478C)}
+.mr-c{flex:none;font:700 .9rem/1 var(--mono,ui-monospace,monospace)}
+@media (max-width:860px){.mapf{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}.mapf button{flex:none}.mapgrid2{grid-template-columns:1fr}.mapbox{min-height:340px;border-right:0;border-bottom:1px solid var(--line)}.maplist{max-height:280px}}
 .recrow{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
 .recrow:first-of-type{border-top:0}
 .recbody{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
@@ -734,6 +763,7 @@ function vAdminHome(){
   const acc=ms.filter(m=>m.account),wk=acc.filter(m=>(m.createdAt||0)>Date.now()-7*864e5).length;
   return `<div class="chead"><div><p class="eyebrow">Mode admin</p><h1>Beranda</h1><p>Pendaftaran, alert, seleksi kandidat, dan penugasan berlangsung dalam satu halaman.</p></div><div class="row"><button class="btn" data-act="new-member">${I.plus}Tambah anggota</button><button class="btn primary" data-act="new-alert">${I.bell}Buat alert</button></div></div>
   <div class="stiles five"><div class="stile"><b>${ms.length}</b><span>Anggota roster</span></div><div class="stile"><b>${ms.filter(m=>m.status==="tersedia").length}</b><span>Siap diberangkatkan</span></div><div class="stile"><b>${live.length}</b><span>Penugasan berlangsung</span></div><div class="stile alert"><b>${open.length}</b><span>Alert terbuka</span></div><div class="stile"><b>${reps.length}</b><span>Laporan masuk</span></div></div>
+  ${typeof mapCard==="function"?mapCard():""}
   ${typeof washpediaHTML==="function"?washpediaHTML():""}
   <div class="grid2">
     <section class="card" id="sec-daftar"><div class="card-h"><h2>Pendaftaran &amp; login</h2><div class="row" style="gap:6px"><button class="btn sm primary" data-act="sheet">${I.sheet}Sumber data</button><button class="btn sm" data-act="admins">${I.users}Kelola admin</button></div></div><div class="card-b">${syncStatusHTML()}
@@ -831,7 +861,7 @@ const ihint=t=>`<div class="ihint">${I.info}<span>${t}</span></div>`;
 function vEmptyStart(){return `<div class="empty"><h3>Roster masih kosong</h3><p>Roster terisi otomatis saat relawan dan staf mendaftar sendiri lewat tautan halaman ini. Anda juga bisa mengimpor dari Excel/CSV bila perlu.</p><div class="row" style="justify-content:center">${S.mcp?`<button class="btn primary" data-act="sheet">${I.sheet}Hubungkan Google Sheets</button>`:""}<button class="btn ${S.mcp?"":"primary"}" data-act="import">${I.up}Impor Excel / CSV</button><button class="btn" data-act="new-member">${I.plus}Tambah manual</button><button class="btn" data-act="admins">${I.user}Cara membagikan tautan</button></div><p style="font-size:.8rem">Relawan yang membuka tautan halaman ini akan melihat formulir pendaftaran, lalu otomatis masuk ke roster.</p></div>`}
 
 /* ---- tab 1: roster ---- */
-function filteredMembers(){const f=S.f,q=f.q.trim().toLowerCase();return members().filter(m=>(!f.role||m.role===f.role)&&(!f.status||m.status===f.status)&&(!f.prov||m.province===f.prov)&&(!f.src||srcOf(m)===f.src)&&(!q||[m.name,m.role,m.province,m.chapter,m.skills,m.email,m.phone].join(" ").toLowerCase().includes(q))).sort(S.f.sort==="tugas"?((a,b)=>assignmentsOf(b.id).length-assignmentsOf(a.id).length||a.name.localeCompare(b.name)):((a,b)=>a.name.localeCompare(b.name)))}
+function filteredMembers(){const f=S.f,q=f.q.trim().toLowerCase();return members().filter(m=>(!f.provNorm||(typeof normProv==="function"&&normProv(m.province)===f.provNorm))&&(!f.role||m.role===f.role)&&(!f.status||m.status===f.status)&&(!f.prov||m.province===f.prov)&&(!f.src||srcOf(m)===f.src)&&(!q||[m.name,m.role,m.province,m.chapter,m.skills,m.email,m.phone].join(" ").toLowerCase().includes(q))).sort(S.f.sort==="tugas"?((a,b)=>assignmentsOf(b.id).length-assignmentsOf(a.id).length||a.name.localeCompare(b.name)):((a,b)=>a.name.localeCompare(b.name)))}
 function rosterTable(){
   const list=filteredMembers();
   if(!list.length)return members().length?`<div class="empty"><h3>Tidak ada yang cocok</h3><p>Ubah kata kunci atau filter di panel kiri.</p></div>`:vEmptyStart();
@@ -865,7 +895,7 @@ function vRosterTab(){
    <div class="lsec"><span class="lbl-up">Status</span>${lrow("fstat","",!S.f.status,`<span class="code teal">ALL</span>`,"Semua status",ms.length)}${Object.entries(MSTAT).map(([k,v])=>lrow("fstat",k,S.f.status===k,`<span class="code ${v[1]}">${k.slice(0,3).toUpperCase()}</span>`,v[0],cnt(m=>m.status===k))).join("")}</div>
    <div class="lsec"><span class="lbl-up">Sumber data</span>${lrow("fsrc","",!S.f.src,`<span class="code teal">ALL</span>`,"Semua sumber",ms.length)}${Object.entries(SRC).map(([k,v])=>lrow("fsrc",k,S.f.src===k,`<span class="code ${k==="daftar"?"teal":"off"}">${k.slice(0,3).toUpperCase()}</span>`,v[0],cnt(m=>srcOf(m)===k))).join("")}</div>
    <div class="lsec"><span class="lbl-up">Provinsi</span><select class="input" id="fprov" aria-label="Provinsi"><option value="">Semua provinsi</option>${provs.map(p=>`<option ${S.f.prov===p?"selected":""}>${esc(p)}</option>`).join("")}</select></div>`;
-  const c=`<div class="chead"><div><h1>Roster relawan &amp; staf WASH</h1><p>${ms.length} anggota · ${cnt(m=>m.status==="tersedia")} tersedia · ${cnt(m=>m.status==="ditugaskan")} bertugas · ${cnt(m=>m.account)} mendaftar sendiri</p></div></div>
+  const c=`<div class="chead"><div><h1>Roster relawan &amp; staf WASH</h1><p>${ms.length} anggota · ${cnt(m=>m.status==="tersedia")} tersedia · ${cnt(m=>m.status==="ditugaskan")} bertugas · ${cnt(m=>m.account)} mendaftar sendiri</p>${S.f.provNorm?`<div class="row" style="gap:6px;margin-top:6px"><span class="pill teal">Provinsi: ${esc(S.f.provNorm)} · ${filteredMembers().length} anggota</span><button class="btn sm ghost" data-act="fprovnorm-clear">${I.x}Hapus filter</button></div>`:""}</div></div>
    ${ms.length?`<span class="hint">Klik baris anggota untuk melihat detail di panel kanan. Filter ada di panel kiri.</span>`:""}${dupNotice()}<div id="rlist">${rosterTable()}</div>`;
   return {l,c,r:memberInspector()}}
 

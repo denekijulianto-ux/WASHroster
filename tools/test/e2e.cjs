@@ -235,6 +235,19 @@ const OUT = process.env.SHOTS || "/tmp";
     const top = await p.$eval("#rlist tbody tr b", x => x.textContent); if (!/Fasil Ahli/.test(top)) throw new Error("roster sort: " + top);
     await p.click("tr[data-act=selm]:has-text('Fasil Ahli')"); await p.waitForSelector("text=Riwayat penugasan (2×, 14 hari)");
   });
+  await step("member distribution map on admin home", async () => {
+    await p.click(".tab:has-text('Beranda')"); await p.waitForSelector("#sec-map .rmap .mbub");
+    const bubbles = await p.$$eval("#sec-map .mbub", xs => xs.map(x => x.textContent));
+    if (bubbles.length < 3) throw new Error("bubbles: " + bubbles.join(","));
+    const firstProv = await p.$eval("#sec-map .mrow b", x => x.textContent); if (!["Bali", "Jawa Tengah"].includes(firstProv)) throw new Error("top prov: " + firstProv);
+    await p.click("[data-act=mapf][data-v=pengurus]"); await p.waitForTimeout(300);
+    const nP = await p.$$eval("#sec-map .mbub", xs => xs.length); if (nP !== 1) throw new Error("pengurus bubbles: " + nP);
+    await p.click("[data-act=mapf][data-v=all]"); await p.waitForTimeout(300);
+    await p.locator("#sec-map").scrollIntoViewIfNeeded(); await shot("12-map");
+    await p.click("[data-act=mapprov][data-v='Bali']"); await p.waitForSelector("text=Provinsi: Bali · 2 anggota");
+    const rows = await p.$$eval("#rlist tbody tr", xs => xs.length); if (rows !== 2) throw new Error("bali rows: " + rows);
+    await p.click("[data-act=fprovnorm-clear]"); await p.waitForTimeout(300);
+  });
   await step("profile origin: Partner National Societies / IFRC / Markas Pusat", async () => {
     await p.click("#tbar [data-act=new-member]"); await p.fill("#mname", "Sam PNS"); await p.fill("#mphone", "081399990000");
     await p.selectOption("#mchapk", "pns"); await p.waitForSelector("#mchapl >> text=Nama perhimpunan"); await p.fill("#mchap", "American Red Cross");
