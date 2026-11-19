@@ -20,6 +20,7 @@ create table if not exists public.members (
   province    text not null default '',
   chapter     text not null default '',
   skills      text not null default '',
+  mis         text not null default '',
   lang        text not null default '',
   status      text not null default 'tersedia' check (status in ('tersedia','ditugaskan','tidak')),
   photo       text not null default '',
@@ -194,10 +195,10 @@ begin
   end if;
 
   if r.id is null then
-    insert into public.members (user_id, email, name, phone, role, level, province, chapter, skills, lang, status, photo, source)
+    insert into public.members (user_id, email, name, phone, role, level, province, chapter, skills, lang, mis, status, photo, source)
     values (uid, mail, trim(p->>'name'), coalesce(p->>'phone',''), coalesce(nullif(p->>'role',''),'Suplai Air Bersih'),
             coalesce(nullif(p->>'level',''),'Relawan (KSR/TSR)'), coalesce(p->>'province',''), coalesce(p->>'chapter',''),
-            coalesce(p->>'skills',''), coalesce(p->>'lang',''), st, coalesce(p->>'photo',''), 'daftar')
+            coalesce(p->>'skills',''), coalesce(p->>'lang',''), trim(coalesce(p->>'mis','')), st, coalesce(p->>'photo',''), 'daftar')
     returning * into r;
   else
     update public.members set
@@ -211,6 +212,7 @@ begin
       chapter  = coalesce(p->>'chapter', chapter),
       skills   = coalesce(p->>'skills', skills),
       lang     = coalesce(p->>'lang', lang),
+      mis      = coalesce(trim(p->>'mis'), mis),
       photo    = coalesce(p->>'photo', photo),
       status   = case when status = 'ditugaskan' then status else st end
     where id = r.id returning * into r;

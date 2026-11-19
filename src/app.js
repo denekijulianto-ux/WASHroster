@@ -245,6 +245,7 @@ function vMemberHome(){
   const anns=announced();
   return `<section class="hero mhero" id="m-top"><div class="phead">${av(m,"lg")}<div><p class="eyebrow">Beranda anggota · sudah masuk</p><h1 style="font-size:clamp(1.6rem,3.2vw,2.3rem)">${esc(m.name)}</h1>
     <p class="lead" style="margin:0">${esc(m.role)} · ${esc(m.level||"")}${m.chapter?" · "+esc(m.chapter):""}</p>
+    <p class="lead" style="margin:0;font-size:.86rem">No. MIS (SIAMO): <b class="mono">${esc(m.mis||"belum diisi")}</b>${m.mis?"":` · <a href="#" data-act="edit-self" style="color:inherit">lengkapi</a>`}</p>
     <p class="lead" style="margin:0;font-size:.86rem">${I.mail.replace("<svg",'<svg width="14" height="14" style="vertical-align:-2px"')} ${esc(m.email||"-")}${m.phone?" · WA +"+waNum(m.phone):""}</p>
     <div class="row" style="gap:8px">${pill(MSTAT,m.status)}<button class="btn sm" data-act="edit-self">${I.edit}Ubah profil</button>${m.status==="tersedia"?`<button class="btn sm" data-act="avail" data-v="tidak">Tandai tidak tersedia</button>`:m.status==="tidak"?`<button class="btn sm" data-act="avail" data-v="tersedia">Tandai tersedia</button>`:""}</div></div></div></section>
   ${anns.length?`<section class="card" id="m-ann"><div class="card-h"><h2>Pengumuman anggota terpilih</h2>${anns.filter(a=>a.announce.at>(S.annSeen||0)).length?`<span class="pill teal">${anns.filter(a=>a.announce.at>(S.annSeen||0)).length} baru</span>`:""}</div><div class="card-b">${anns.slice(0,6).map(a=>annCard(a,{member:true})).join("")}</div></section>`:""}
@@ -317,7 +318,7 @@ function memberInspector(){
   return `<div class="isec"><div class="row" style="align-items:flex-start;gap:14px;flex-wrap:nowrap">${av(m,"lg")}<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="row" style="gap:6px">${pill(MSTAT,m.status)}${pill(SRC,srcOf(m))}${sampleTag(m)}</div><h2>${esc(m.name)}</h2><p class="muted" style="font-size:.86rem">${esc(m.role)}<br>${esc(m.level||"")}</p></div></div>
    <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-member" data-m="${id}">${I.edit}Ubah</button><button class="btn sm ghost danger" data-act="del-member" data-m="${id}">Hapus</button></div>${m.account?`<div class="row" style="gap:6px;align-items:center"><span class="muted" style="font-size:.8rem">${m.hasPassword?"Sudah memakai password.":"Belum membuat password."}</span>${m.hasPassword?`<button class="btn sm" data-act="reset-login" data-m="${id}">Reset akses login</button>`:""}</div>`:""}</div>
    <div class="isec"><span class="lbl-up">Kontak</span>${m.phone?`<div class="copyline"><span style="width:16px;color:#128C4A;display:inline-flex">${I.wa}</span><code>+${waNum(m.phone)}</code><button class="btn sm ghost" data-act="copytxt" data-t="+${waNum(m.phone)}">${I.copy}</button></div>`:""}${m.email?`<div class="copyline"><span style="width:16px;display:inline-flex">${I.mail}</span><code>${esc(m.email)}</code><button class="btn sm ghost" data-act="copytxt" data-t="${esc(m.email)}">${I.copy}</button></div>`:""}${!m.phone&&!m.email?`<p class="muted">Belum ada kontak.</p>`:""}</div>
-   <div class="isec"><span class="lbl-up">Profil</span><dl class="kv"><dt>Provinsi</dt><dd>${esc(m.province||"-")}</dd><dt>Markas PMI</dt><dd>${esc(m.chapter||"-")}</dd><dt>Keahlian</dt><dd>${esc(m.skills||"-")}</dd><dt>Bahasa</dt><dd>${esc(m.lang||"-")}</dd><dt>Terdaftar</dt><dd>${m.createdAt?stampT(m.createdAt):"-"}</dd></dl></div>
+   <div class="isec"><span class="lbl-up">Profil</span><dl class="kv"><dt>No. MIS (SIAMO)</dt><dd class="mono">${esc(m.mis||"-")}</dd><dt>Provinsi</dt><dd>${esc(m.province||"-")}</dd><dt>Markas PMI</dt><dd>${esc(m.chapter||"-")}</dd><dt>Keahlian</dt><dd>${esc(m.skills||"-")}</dd><dt>Bahasa</dt><dd>${esc(m.lang||"-")}</dd><dt>Terdaftar</dt><dd>${m.createdAt?stampT(m.createdAt):"-"}</dd></dl></div>
    <div class="isec"><span class="lbl-up">Riwayat alert (${hist.length})</span>${hist.length?`<div class="dlist">${hist.map(({a,c})=>`<div class="ditem"><div><div class="t">${esc(a.title)}</div><div class="s mono">${esc(a.code)} · ${fmt(a.start)} · ${a.dur} hari</div></div>${pill(CSTAT,c.state)}${c.state==="terpilih"?`<button class="btn sm" data-act="card" data-a="${a.id}" data-m="${id}">Kartu</button>`:""}</div>`).join("")}</div>`:`<p class="muted">Belum pernah diundang.</p>`}</div>`}
 function regSummary(){
   const acc=members().filter(m=>m.account),wk=acc.filter(m=>(m.createdAt||0)>Date.now()-7*864e5).length;
@@ -423,7 +424,7 @@ function vCardTab(){
      <div class="row" style="gap:6px">${m.phone?`<a class="btn wa" target="_blank" rel="noopener" href="${esc(waHref(m.phone,txt))}" data-act="sent" data-ch="wa" data-a="${a.id}" data-m="${m.id}">${I.wa}Kirim via WA</a>`:""}${m.email?`<a class="btn" target="_blank" rel="noopener" href="${esc(mailHref(m.email,subj,txt))}" data-act="sent" data-ch="email" data-a="${a.id}" data-m="${m.id}">${I.mail}Kirim via email</a>`:""}</div>
      <p class="note">Unduh kartu dulu, lalu lampirkan gambarnya di chat WhatsApp atau email yang terbuka.</p></div>`}
   return {l,c,r}}
-async function cardURL(a,m,c){const k=a.id+"|"+m.id,sig=[m.photo&&m.photo.length,m.name,a.role,a.location,a.title,a.start,a.dur,c.cardNo].join("~");S.cardCache=S.cardCache||{};const hit=S.cardCache[k];if(hit&&hit.sig===sig)return hit;const cv=await drawCard(a,m,c);const v={sig,url:cv.toDataURL("image/png"),cv};S.cardCache[k]=v;return v}
+async function cardURL(a,m,c){const k=a.id+"|"+m.id,sig=[m.photo&&m.photo.length,m.name,m.mis,a.role,a.location,a.title,a.start,a.dur,c.cardNo].join("~");S.cardCache=S.cardCache||{};const hit=S.cardCache[k];if(hit&&hit.sig===sig)return hit;const cv=await drawCard(a,m,c);const v={sig,url:cv.toDataURL("image/png"),cv};S.cardCache[k]=v;return v}
 async function paintCardPreview(){const k=S.selCard;if(!k)return;const [aid,mid]=k.split("|");const a=S.alerts[aid],m=S.members[mid];const c=a&&(a.cand||{})[mid];if(!a||!m||!c)return;
   const v=await cardURL(Object.assign({id:aid},a),Object.assign({id:mid},m),c);const box=$("#inspcard");if(box&&S.selCard===k)box.innerHTML=`<img class="cardimg" src="${v.url}" alt="Kartu penugasan ${esc(m.name)}">`}
 
@@ -558,6 +559,7 @@ function memberFields(m,self){
   return `<form class="form" id="mform" novalidate>
     <div class="field full"><label>Foto profil</label><div class="photo-in"><div id="mphoto">${av(m,"lg")}</div><div style="display:flex;flex-direction:column;gap:6px;min-width:0"><input type="file" id="mfile" accept="image/*"><span class="hint">Foto wajah tampak depan. Otomatis dipotong 4:5 untuk kartu ID.</span></div></div></div>
     <div class="field full"><label for="mname">Nama lengkap</label><input class="input" id="mname" value="${esc(m.name||"")}" autocomplete="name" required></div>
+    <div class="field full"><label for="mmis">No. MIS (SIAMO)</label><input class="input mono" id="mmis" placeholder="Nomor anggota di SIAMO" value="${esc(m.mis||"")}"><span class="hint">Tercetak di kartu ID penugasan.</span></div>
     <div class="field"><label for="mrole">Profil WASH</label><select class="input" id="mrole">${ROLES.map(r=>`<option ${m.role===r?"selected":""}>${esc(r)}</option>`).join("")}</select></div>
     <div class="field"><label for="mlevel">Kategori</label><select class="input" id="mlevel">${LEVELS.map(r=>`<option ${m.level===r?"selected":""}>${esc(r)}</option>`).join("")}</select></div>
     <div class="field"><label for="mphone">Nomor WhatsApp</label><input class="input" id="mphone" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxx" value="${esc(m.phone||"")}"></div>
@@ -578,7 +580,7 @@ function resizePhoto(file){return new Promise((res,rej)=>{const r=new FileReader
 const lockMail=()=>(S.meProfile&&S.meProfile.email||"").toLowerCase();
 async function saveMember(id,self){
   const v=k=>($("#"+k).value||"").trim();
-  const m={name:v("mname"),role:v("mrole"),level:v("mlevel"),phone:v("mphone"),email:v("memail").toLowerCase(),province:v("mprov"),chapter:v("mchap"),skills:v("mskills"),status:v("mstat"),lang:v("mlang"),photo:S.pendingPhoto||""};
+  const m={name:v("mname"),role:v("mrole"),level:v("mlevel"),phone:v("mphone"),email:v("memail").toLowerCase(),province:v("mprov"),chapter:v("mchap"),skills:v("mskills"),status:v("mstat"),lang:v("mlang"),mis:($("#mmis")?v("mmis"):undefined),photo:S.pendingPhoto||""};
   const err=$("#merr"),fail=t=>{err.textContent=t;err.hidden=false};
   if(!m.name)return fail("Isi nama lengkap.");
   if(self&&lockMail())m.email=lockMail();
@@ -649,7 +651,7 @@ async function mergeAll(){
 }
 
 /* ---------- import from Excel / CSV / Google Sheets ---------- */
-const FIELDS=[["name","Nama lengkap",["nama","nama lengkap","name","full name","nama relawan","nama anggota"]],["phone","Nomor WhatsApp",["wa","whatsapp","no wa","nomor wa","nomor whatsapp","no hp","hp","nomor hp","no telp","telepon","telp","phone","handphone","no handphone"]],["email","Email",["email","e mail","surel","alamat email"]],["role","Profil WASH",["profil","profil wash","profile","posisi","role","spesialisasi","keahlian utama","bidang"]],["level","Kategori",["kategori","level","jenis anggota","category","jenis"]],["province","Provinsi",["provinsi","province","prov"]],["chapter","Markas PMI",["markas","markas pmi","cabang","chapter","unit","asal pmi"]],["skills","Keahlian",["keahlian","sertifikasi","skills","kompetensi","keterampilan","pelatihan"]],["lang","Bahasa",["bahasa","language"]],["status","Status",["status","ketersediaan","availability"]]];
+const FIELDS=[["name","Nama lengkap",["nama","nama lengkap","name","full name","nama relawan","nama anggota"]],["phone","Nomor WhatsApp",["wa","whatsapp","no wa","nomor wa","nomor whatsapp","no hp","hp","nomor hp","no telp","telepon","telp","phone","handphone","no handphone"]],["email","Email",["email","e mail","surel","alamat email"]],["role","Profil WASH",["profil","profil wash","profile","posisi","role","spesialisasi","keahlian utama","bidang"]],["level","Kategori",["kategori","level","jenis anggota","category","jenis"]],["province","Provinsi",["provinsi","province","prov"]],["chapter","Markas PMI",["markas","markas pmi","cabang","chapter","unit","asal pmi"]],["skills","Keahlian",["keahlian","sertifikasi","skills","kompetensi","keterampilan","pelatihan"]],["lang","Bahasa",["bahasa","language"]],["mis","No. MIS (SIAMO)",["no mis","nomor mis","mis","siamo","no siamo","nomor siamo","no. mis"]],["status","Status",["status","ketersediaan","availability"]]];
 const normH=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 function autoMap(hs){const map={},used=new Set();
   FIELDS.forEach(([k,,syn])=>{const i=hs.findIndex((h,i)=>!used.has(i)&&syn.includes(normH(h)));if(i>=0){map[k]=i;used.add(i)}});
@@ -677,7 +679,7 @@ function impRecords(){
   const seen=new Set();
   return rows.map((r,i)=>{const g=k=>map[k]!=null&&map[k]!==""?String(r[map[k]]||"").trim():"";
     const rawRole=g("role");
-    const rec={name:g("name"),phone:g("phone"),email:g("email").toLowerCase(),role:mapRole(rawRole),level:mapLevel(g("level")),province:g("province"),chapter:g("chapter"),skills:g("skills"),lang:g("lang"),status:mapStatus(g("status")),row:i+2,st:"baru",note:""};
+    const rec={name:g("name"),phone:g("phone"),email:g("email").toLowerCase(),role:mapRole(rawRole),level:mapLevel(g("level")),province:g("province"),chapter:g("chapter"),skills:g("skills"),lang:g("lang"),mis:g("mis"),status:mapStatus(g("status")),row:i+2,st:"baru",note:""};
     if(!rec.name){rec.st="lewati";rec.note="Nama kosong"}
     else if(!rec.phone&&!rec.email){rec.st="lewati";rec.note="Tidak ada WA atau email"}
     else if(rec.email&&!/^\S+@\S+\.\S+$/.test(rec.email)){rec.st="lewati";rec.note="Email tidak valid"}
@@ -708,10 +710,10 @@ function refreshImp(){const p=$("#imppreview");if(p)p.innerHTML=impPreviewHTML()
 async function runImport(){
   const recs=impRecords().filter(r=>r.st!=="lewati"),def=S.imp.defRole;let done=0,ok=0,fail=0,quota=false;
   S.imp.running=0;renderImport();S.suspend=true;
-  const keys=["name","phone","email","role","level","province","chapter","skills","lang","status"];
+  const keys=["name","phone","email","role","level","province","chapter","skills","lang","mis","status"];
   const one=async r=>{let kind,id,data;
     if(r.existing){id=r.existing;kind="update";data={updatedAt:Date.now()};keys.forEach(k=>{if(r[k])data[k]=r[k]});if((S.members[id]||{}).status==="ditugaskan")delete data.status}
-    else{id=newId("m");kind="set";data={name:r.name,phone:r.phone,email:r.email,role:r.role||def,level:r.level||LEVELS[0],province:r.province,chapter:r.chapter,skills:r.skills,lang:r.lang,status:r.status||"tersedia",photo:"",source:"impor",createdAt:Date.now()}}
+    else{id=newId("m");kind="set";data={name:r.name,phone:r.phone,email:r.email,role:r.role||def,level:r.level||LEVELS[0],province:r.province,chapter:r.chapter,skills:r.skills,lang:r.lang,mis:r.mis||"",status:r.status||"tersedia",photo:"",source:"impor",createdAt:Date.now()}}
     for(let t=0;t<3;t++){try{await write(kind,"members",id,data);ok++;return}catch(e){if(e&&e.code==="quota_exceeded"){quota=true;break}if(!e||!(e.code==="resource_exhausted"||e.code==="unavailable"))break;await new Promise(z=>setTimeout(z,1200*(t+1)))}}
     fail++};
   let idx=0;const worker=async()=>{while(idx<recs.length&&!quota){const r=recs[idx++];await one(r);done++;const bar=$("#impbar"),tx=$("#imptxt");if(bar)bar.style.width=(done/recs.length*100)+"%";if(tx)tx.textContent=`${done} dari ${recs.length} diproses`}};
@@ -724,7 +726,7 @@ async function saveXlsx(name,sheets){
   const wb=XLSX.utils.book_new();sheets.forEach(([n,rows])=>XLSX.utils.book_append_sheet(wb,Array.isArray(rows[0])?XLSX.utils.aoa_to_sheet(rows):XLSX.utils.json_to_sheet(rows),n));
   const out=XLSX.write(wb,{bookType:"xlsx",type:"array"});
   try{await S.downloads.save({filename:name,data:new Uint8Array(out)});toast("File disimpan")}catch(e){if(e&&e.code!=="declined")toast("File tidak bisa diunduh di tampilan ini.")}}
-function exportRoster(){saveXlsx(`roster-wash-${today()}.xlsx`,[["Roster",members().sort((a,b)=>a.name.localeCompare(b.name)).map(m=>({"Nama lengkap":m.name,"Nomor WhatsApp":m.phone||"","Email":m.email||"","Profil WASH":m.role,"Kategori":m.level||"","Provinsi":m.province||"","Markas PMI":m.chapter||"","Keahlian":m.skills||"","Bahasa":m.lang||"","Status":(MSTAT[m.status]||[m.status])[0],"Sumber":SRC[srcOf(m)][0]}))]])}
+function exportRoster(){saveXlsx(`roster-wash-${today()}.xlsx`,[["Roster",members().sort((a,b)=>a.name.localeCompare(b.name)).map(m=>({"Nama lengkap":m.name,"Nomor WhatsApp":m.phone||"","Email":m.email||"","Profil WASH":m.role,"Kategori":m.level||"","Provinsi":m.province||"","Markas PMI":m.chapter||"","Keahlian":m.skills||"","Bahasa":m.lang||"","No. MIS (SIAMO)":m.mis||"","Status":(MSTAT[m.status]||[m.status])[0],"Sumber":SRC[srcOf(m)][0]}))]])}
 function templateXlsx(){saveXlsx("template-roster-wash.xlsx",[["Roster",[FIELDS.map(f=>f[1]),["Nama Relawan Contoh","081234567890","relawan@contoh.id","Promosi Kebersihan","Relawan (KSR/TSR)","Jawa Tengah","PMI Kota Semarang","PHAST, CHAST","Indonesia","Tersedia"]]],["Pilihan",[["Profil WASH","Kategori","Status"],...ROLES.map((r,i)=>[r,LEVELS[i]||"",["Tersedia","Tidak tersedia"][i]||""])]]])}
 
 function alertForm(a){
@@ -767,38 +769,35 @@ const loadImg=src=>new Promise(r=>{const i=new Image();if(!/^data:/.test(src))i.
 async function drawCard(a,m,c){
   try{await Promise.all(["800 40px Archivo","700 20px 'Public Sans'","600 20px 'IBM Plex Mono'"].map(f=>document.fonts.load(f)))}catch(e){}
   const W=640,H=1010,cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
-  const RED="#2563B0",INK="#0F2A4A",MUT="#52708F",WATER="#1D4F91";
+  const RED="#C8102E",DARK="#9E0B23",INK="#231A1C",MUT="#7D6B6E",PINK="#FDECEE",LINE="#F3D5DA";
   x.save();rr(x,0,0,W,H,34);x.clip();
   x.fillStyle="#FFFFFF";x.fillRect(0,0,W,H);
-  x.fillStyle=RED;x.fillRect(0,72,W,190);
-  x.strokeStyle="rgba(255,255,255,.16)";x.lineWidth=3;for(let k=0;k<3;k++){x.beginPath();for(let px=0;px<=W;px+=8){const py=190+k*24+Math.sin(px/52+k)*10;px?x.lineTo(px,py):x.moveTo(px,py)}x.stroke()}
   {const lg=await Promise.all(LOGO_SRC.map(loadImg));const hh=46,gap=26;const ws=lg.map(i=>i?i.width*hh/i.height:0);let lx=(W-ws.reduce((s,w)=>s+w,0)-gap*(lg.length-1))/2;lg.forEach((i,k)=>{if(i)x.drawImage(i,lx,13,ws[k],hh);lx+=ws[k]+gap})}
-  x.fillStyle="#fff";
-  x.font="700 17px 'Public Sans',sans-serif";x.fillText("ROSTER WASH · PMI",40,104);
-  x.font="800 34px Archivo,sans-serif";x.fillText("KARTU PENUGASAN",40,140);
-  x.font="600 17px 'IBM Plex Mono',monospace";x.textAlign="right";x.fillStyle="rgba(255,255,255,.85)";x.fillText(a.code||"",W-40,104);x.textAlign="left";
-  const PW=220,PH=272,PX=(W-PW)/2,PY=168;
-  x.fillStyle="#fff";rr(x,PX-8,PY-8,PW+16,PH+16,26);x.fill();
-  x.save();rr(x,PX,PY,PW,PH,20);x.clip();
+  const g=x.createLinearGradient(0,72,0,250);g.addColorStop(0,RED);g.addColorStop(1,DARK);x.fillStyle=g;x.fillRect(0,72,W,178);
+  x.strokeStyle="rgba(255,255,255,.18)";x.lineWidth=3;for(let k=0;k<3;k++){x.beginPath();for(let px=0;px<=W;px+=8){const py=150+k*26+Math.sin(px/52+k)*10;px?x.lineTo(px,py):x.moveTo(px,py)}x.stroke()}
+  x.font="600 16px 'IBM Plex Mono',monospace";x.textAlign="right";x.fillStyle="rgba(255,255,255,.9)";x.fillText(a.code||"",W-36,104);x.textAlign="left";
+  const PW=204,PH=252,PX=(W-PW)/2,PY=112;
+  x.fillStyle="#fff";rr(x,PX-8,PY-8,PW+16,PH+16,24);x.fill();
+  x.save();rr(x,PX,PY,PW,PH,18);x.clip();
   const img=m.photo?await loadImg(m.photo):null;
-  if(img){const s=Math.max(PW/img.width,PH/img.height);x.drawImage(img,PX+(PW-img.width*s)/2,PY+(PH-img.height*s)/2,img.width*s,img.height*s)}
-  else{x.fillStyle="#E2EEFC";x.fillRect(PX,PY,PW,PH);x.fillStyle=WATER;x.font="800 96px Archivo,sans-serif";x.textAlign="center";x.fillText(initials(m.name),W/2,PY+PH/2+34);x.textAlign="left"}
+  if(img){const sc=Math.max(PW/img.width,PH/img.height);x.drawImage(img,PX+(PW-img.width*sc)/2,PY+(PH-img.height*sc)/2,img.width*sc,img.height*sc)}
+  else{x.fillStyle=PINK;x.fillRect(PX,PY,PW,PH);x.fillStyle=RED;x.font="800 92px Archivo,sans-serif";x.textAlign="center";x.fillText(initials(m.name),W/2,PY+PH/2+32);x.textAlign="left"}
   x.restore();
-  x.textAlign="center";x.fillStyle=INK;x.font="800 38px Archivo,sans-serif";
-  const nl=wrap2(x,m.name,W-80);let y=PY+PH+58;nl.forEach(l=>{x.fillText(l,W/2,y);y+=42});
-  x.font="700 21px 'Public Sans',sans-serif";const rl=a.role.toUpperCase(),rw=x.measureText(rl).width+44;
-  x.fillStyle="#E2EEFC";rr(x,(W-rw)/2,y-18,rw,42,21);x.fill();x.fillStyle=WATER;x.fillText(rl,W/2,y+10);x.textAlign="left";
-  y+=58;
-  const rows=[["LOKASI",a.location],["OPERASI",a.title],["PERIODE",fmt(a.start)+" – "+fmt(endOf(a))],["DURASI",a.dur+" hari"]];
-  x.strokeStyle="#D4E4F6";x.lineWidth=2;
-  rows.forEach(([k,v],i)=>{const ry=y+i*58;x.fillStyle=MUT;x.font="700 15px 'Public Sans',sans-serif";x.fillText(k,48,ry+22);x.fillStyle=INK;x.font="600 22px 'Public Sans',sans-serif";x.fillText(fit(x,v,W-48-180),180,ry+23);if(i)x.beginPath(),x.moveTo(48,ry-8),x.lineTo(W-48,ry-8),x.stroke()});
-  const fy=H-150;x.fillStyle="#EEF5FC";x.fillRect(0,fy,W,150);
-  let qr=null;try{const qc=document.createElement("canvas");await QRCode.toCanvas(qc,`${c.cardNo}|${m.name}|${a.role}|${a.location}|${a.start}/${endOf(a)}`,{width:220,margin:1,errorCorrectionLevel:"M"});qr=qc}catch(e){}
-  if(qr){x.fillStyle="#fff";rr(x,40,fy+18,114,114,10);x.fill();x.drawImage(qr,47,fy+25,100,100)}
-  const tx=qr?178:48;x.fillStyle=MUT;x.font="700 14px 'Public Sans',sans-serif";x.fillText("NO. KARTU",tx,fy+44);
-  x.fillStyle=INK;x.font="600 26px 'IBM Plex Mono',monospace";x.fillText(c.cardNo||"",tx,fy+76);
+  x.textAlign="center";x.fillStyle=INK;x.font="800 36px Archivo,sans-serif";
+  const nl=wrap2(x,m.name,W-80);let y=PY+PH+56;nl.forEach(l=>{x.fillText(l,W/2,y);y+=40});
+  x.font="700 20px 'Public Sans',sans-serif";const rl=String(a.role||"").toUpperCase(),rw=x.measureText(rl).width+44;
+  x.fillStyle=RED;rr(x,(W-rw)/2,y-17,rw,40,20);x.fill();x.fillStyle="#fff";x.fillText(rl,W/2,y+10);x.textAlign="left";
+  y+=56;
+  const rows=[["NO. MIS",m.mis||"-"],["LOKASI",a.location],["OPERASI",a.title],["PERIODE",fmt(a.start)+" – "+fmt(endOf(a))],["DURASI",a.dur+" hari"]];
+  x.strokeStyle=LINE;x.lineWidth=2;
+  rows.forEach(([k,v],i)=>{const ry=y+i*48;x.fillStyle=RED;x.font="700 14px 'Public Sans',sans-serif";x.fillText(k,48,ry+20);x.fillStyle=INK;x.font=(k==="NO. MIS"?"600 21px 'IBM Plex Mono',monospace":"600 21px 'Public Sans',sans-serif");x.fillText(fit(x,v,W-48-176),176,ry+21);if(i){x.beginPath();x.moveTo(48,ry-8);x.lineTo(W-48,ry-8);x.stroke()}});
+  const fy=H-148;x.fillStyle=RED;x.fillRect(40,fy,W-80,3);
+  let qr=null;try{const qc=document.createElement("canvas");await QRCode.toCanvas(qc,`${c.cardNo}|${m.name}|${m.mis||""}|${a.role}|${a.location}|${a.start}/${endOf(a)}`,{width:220,margin:1,errorCorrectionLevel:"M"});qr=qc}catch(e){}
+  if(qr){x.strokeStyle=LINE;x.lineWidth=2;rr(x,40,fy+18,112,112,10);x.stroke();x.drawImage(qr,46,fy+24,100,100)}
+  const tx=qr?176:48;x.fillStyle=RED;x.font="700 14px 'Public Sans',sans-serif";x.fillText("NO. KARTU",tx,fy+46);
+  x.fillStyle=INK;x.font="600 26px 'IBM Plex Mono',monospace";x.fillText(c.cardNo||"",tx,fy+78);
   x.fillStyle=MUT;x.font="600 16px 'Public Sans',sans-serif";x.fillText("Berlaku s/d "+fmtLong(endOf(a)),tx,fy+108);
-  x.fillStyle=RED;x.fillRect(0,H-12,W,12);
+  x.fillStyle=RED;x.fillRect(0,H-14,W,14);
   x.restore();
   return cv;
 }
@@ -993,7 +992,7 @@ route();
    ===================================================================== */
 const isoT=t=>t?new Date(t).toISOString():null;
 const msT=t=>t?Date.parse(t):null;
-const MCOLS={name:"name",email:"email",phone:"phone",role:"role",level:"level",province:"province",chapter:"chapter",skills:"skills",lang:"lang",status:"status",photo:"photo",source:"source",sheetSig:"sheet_sig"};
+const MCOLS={name:"name",email:"email",mis:"mis",phone:"phone",role:"role",level:"level",province:"province",chapter:"chapter",skills:"skills",lang:"lang",status:"status",photo:"photo",source:"source",sheetSig:"sheet_sig"};
 const ACOLS={code:"code",title:"title",emergency:"emergency",role:"role",location:"location",start:"start_date",dur:"dur",deadline:"deadline",slots:"slots",desc:"description",status:"status"};
 function memberRow(d){const o={};for(const k in MCOLS)if(d[k]!==undefined)o[MCOLS[k]]=d[k]==null?"":d[k];if(o.sheet_sig==="")o.sheet_sig=null;if(o.email!==undefined)o.email=String(o.email||"").toLowerCase()||null;return o}
 function alertRow(d){const o={};for(const k in ACOLS)if(d[k]!==undefined)o[ACOLS[k]]=d[k];if(d.announce!==undefined){o.announce_at=d.announce&&d.announce.at?isoT(d.announce.at):null;o.announce_note=d.announce&&d.announce.note||""}return o}
@@ -1012,7 +1011,7 @@ function hasPasswordSession(){const amr=jwtClaims().amr||[];return amr.some(x=>(
 async function remoteWrite(kind,coll,id,data,prev){
   if(coll==="members"){
     const self=id===S.uid||id==="me";
-    if(self&&kind==="set"){const p={};["name","phone","role","level","province","chapter","skills","lang","status","photo"].forEach(k=>{if(data[k]!==undefined)p[k]=data[k]});chk(await sb.rpc("save_my_profile",{p}));return}
+    if(self&&kind==="set"){const p={};["name","phone","role","level","province","chapter","skills","lang","mis","status","photo"].forEach(k=>{if(data[k]!==undefined)p[k]=data[k]});chk(await sb.rpc("save_my_profile",{p}));return}
     if(self&&data.responses){for(const [aid,r] of Object.entries(data.responses))chk(await sb.rpc("respond",{p_alert:aid,p_state:r.state}));return}
     if(self&&data.reports&&Object.values(data.reports).some(r=>r.summary!=null)){for(const [aid,r] of Object.entries(data.reports))chk(await sb.rpc("submit_report",{p_alert:aid,p:{summary:r.summary,metrics:r.metrics||{},cond:r.cond,issues:r.issues||"",recs:r.recs||""}}));return}
     if(self&&!S.isAdmin&&data.status&&Object.keys(data).length===1){chk(await sb.rpc("set_my_status",{s:data.status}));return}
@@ -1052,7 +1051,7 @@ async function loadAll(){
   const me=S.session.user.id;
   S.admins=ad;S.isAdminAcct=ad.some(x=>x.user_id===me);S.isAdmin=S.isAdminAcct&&hasPasswordSession();
   const members={};let myId=null;
-  m.forEach(x=>{members[x.id]={name:x.name,email:x.email||"",phone:x.phone,role:x.role,level:x.level,province:x.province,chapter:x.chapter,skills:x.skills,lang:x.lang,status:x.status,photo:x.photo,source:x.source,account:!!x.user_id,hasPassword:!!x.has_password,sheetSig:x.sheet_sig,createdAt:msT(x.created_at),reports:{}};if(x.user_id===me)myId=x.id});
+  m.forEach(x=>{members[x.id]={name:x.name,email:x.email||"",phone:x.phone,role:x.role,level:x.level,province:x.province,chapter:x.chapter,skills:x.skills,lang:x.lang,mis:x.mis||"",status:x.status,photo:x.photo,source:x.source,account:!!x.user_id,hasPassword:!!x.has_password,sheetSig:x.sheet_sig,createdAt:msT(x.created_at),reports:{}};if(x.user_id===me)myId=x.id});
   r.forEach(x=>{const mm=members[x.member_id];if(mm)mm.reports[x.alert_id]={summary:x.summary,metrics:x.metrics||{},cond:x.cond,issues:x.issues,recs:x.recs,seen:x.seen,at:msT(x.submitted_at)}});
   const alerts={};
   a.forEach(x=>{alerts[x.id]={code:x.code,title:x.title,emergency:x.emergency,role:x.role,location:x.location,start:x.start_date,dur:x.dur,deadline:x.deadline,slots:x.slots,desc:x.description,status:x.status,createdAt:msT(x.created_at),announce:x.announce_at?{at:msT(x.announce_at),note:x.announce_note}:null,cand:{}}});

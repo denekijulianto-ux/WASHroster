@@ -30,7 +30,7 @@ const canRead = (t, r) => {
 };
 const err = (message, code = "P0001") => ({ data: null, error: { message, code } });
 const defaults = {
-  members: () => ({ id: uuid(), user_id: null, email: null, phone: "", role: "Suplai Air Bersih", level: "Relawan (KSR/TSR)", province: "", chapter: "", skills: "", lang: "", status: "tersedia", photo: "", source: "manual", sheet_sig: null, has_password: false, created_at: now() }),
+  members: () => ({ id: uuid(), user_id: null, email: null, phone: "", role: "Suplai Air Bersih", level: "Relawan (KSR/TSR)", province: "", chapter: "", skills: "", lang: "", mis: "", status: "tersedia", photo: "", source: "manual", sheet_sig: null, has_password: false, created_at: now() }),
   alerts: () => ({ id: uuid(), emergency: "", slots: 1, description: "", status: "terbuka", announce_at: null, announce_note: "", created_at: now() }),
   candidates: () => ({ self_response: false, invited_at: null, answered_at: null, email_at: null, wa_at: null, card_no: null, selected_at: null, name: null, thumb: null }),
   reports: () => ({ seen: false, submitted_at: now(), metrics: {} }),
@@ -73,7 +73,7 @@ const rpcs = {
     let r = myMember() || db.members.find(m => !m.user_id && (m.email || "").toLowerCase() === mail);
     if (!r) { r = Object.assign(defaults.members(), { user_id: uid(), email: mail, source: "daftar" }); db.members.push(r); }
     Object.assign(r, { user_id: uid(), email: mail, name: p.name.trim() });
-    ["phone", "role", "level", "province", "chapter", "skills", "lang", "photo"].forEach(k => { if (p[k] !== undefined && p[k] !== "") r[k] = p[k]; });
+    ["phone", "role", "level", "province", "chapter", "skills", "lang", "mis", "photo"].forEach(k => { if (p[k] !== undefined && p[k] !== "") r[k] = p[k]; });
     if (r.status !== "ditugaskan") r.status = st; return { data: r, error: null };
   },
   set_my_status({ s }) { const m = myMember(); if (m && m.status !== "ditugaskan") m.status = s; return { data: null, error: null }; },

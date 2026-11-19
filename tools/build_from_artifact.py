@@ -61,8 +61,8 @@ rep('if(c==="revoked"||c==="not_granted")return"Anda tidak punya akses untuk men
     'if(c==="revoked"||c==="not_granted")return S.isAdminAcct&&!S.isAdmin?"Masuk Mode Admin dengan password untuk mengubah data ini.":"Anda tidak punya akses untuk mengubah data ini.";return"Gagal menyimpan. Periksa koneksi lalu coba lagi."}')
 
 # QR via npm qrcode
-rep('let qr=null;try{if(window.QRCode){const d=document.createElement("div");new QRCode(d,{text:`${c.cardNo}|${m.name}|${a.role}|${a.location}|${a.start}/${endOf(a)}`,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});qr=d.querySelector("canvas")}}catch(e){}',
-    'let qr=null;try{const qc=document.createElement("canvas");await QRCode.toCanvas(qc,`${c.cardNo}|${m.name}|${a.role}|${a.location}|${a.start}/${endOf(a)}`,{width:220,margin:1,errorCorrectionLevel:"M"});qr=qc}catch(e){}')
+rep('let qr=null;try{if(window.QRCode){const d=document.createElement("div");new QRCode(d,{text:`${c.cardNo}|${m.name}|${m.mis||""}|${a.role}|${a.location}|${a.start}/${endOf(a)}`,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});qr=d.querySelector("canvas")}}catch(e){}',
+    'let qr=null;try{const qc=document.createElement("canvas");await QRCode.toCanvas(qc,`${c.cardNo}|${m.name}|${m.mis||""}|${a.role}|${a.location}|${a.start}/${endOf(a)}`,{width:220,margin:1,errorCorrectionLevel:"M"});qr=qc}catch(e){}')
 rep('const loadImg=src=>new Promise(r=>{const i=new Image();', 'const loadImg=src=>new Promise(r=>{const i=new Image();if(!/^data:/.test(src))i.crossOrigin="anonymous";')
 
 # photos -> Supabase Storage

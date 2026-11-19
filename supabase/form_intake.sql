@@ -83,7 +83,7 @@ create or replace function public.form_intake(p_token text, p_answers jsonb, p_e
 language plpgsql security definer set search_path = public, extensions as $$
 declare
   ok boolean;
-  v_email text; v_name text; v_phone text; v_prov text; v_chap text; v_skills text; v_role text; v_level text; v_lang text;
+  v_email text; v_name text; v_phone text; v_prov text; v_chap text; v_skills text; v_role text; v_level text; v_lang text; v_mis text;
   r public.members; result text;
 begin
   select exists (select 1 from public.intake_secret where token_hash = encode(digest(coalesce(p_token,''), 'sha256'), 'hex')) into ok;
@@ -101,15 +101,16 @@ begin
   v_role  := public._map_role(public._pick(p_answers, array['%profil%', '%bidang%', '%posisi%', '%spesialisasi%', '%peminatan%', '%minat%']));
   v_level := public._map_level(public._pick(p_answers, array['%kategori%', '%status keanggotaan%', '%jenis anggota%', '%keanggotaan%']));
   v_lang  := public._pick(p_answers, array['%bahasa%', '%language%']);
+  v_mis   := public._pick(p_answers, array['%siamo%', '%no. mis%', '%no mis%', '%nomor mis%', 'mis', 'mis %', '% mis', '% mis %', '%(mis%']);
 
   if coalesce(v_email, '') !~ '^\S+@\S+\.\S+$' then raise exception 'Email responden tidak ada. Aktifkan "Kumpulkan alamat email" di Google Form.' using errcode = '22023'; end if;
   if coalesce(v_name, '') = '' then raise exception 'Nama tidak ditemukan di jawaban' using errcode = '22023'; end if;
 
   select * into r from public.members where lower(email) = v_email limit 1;
   if r.id is null then
-    insert into public.members (email, name, phone, role, level, province, chapter, skills, lang, status, source)
+    insert into public.members (email, name, phone, role, level, province, chapter, skills, lang, mis, status, source)
     values (v_email, v_name, coalesce(v_phone,''), coalesce(v_role,'Suplai Air Bersih'), coalesce(v_level,'Relawan (KSR/TSR)'),
-            coalesce(v_prov,''), coalesce(v_chap,''), coalesce(v_skills,''), coalesce(v_lang,''), 'tersedia', 'form');
+            coalesce(v_prov,''), coalesce(v_chap,''), coalesce(v_skills,''), coalesce(v_lang,''), coalesce(v_mis,''), 'tersedia', 'form');
     result := 'baru';
   elsif r.user_id is not null then
     -- Sudah login & mengelola profil sendiri: hanya lengkapi kolom yang masih kosong.
@@ -118,7 +119,8 @@ begin
       province = case when province = '' then coalesce(v_prov, '') else province end,
       chapter = case when chapter = '' then coalesce(v_chap, '') else chapter end,
       skills = case when skills = '' then coalesce(v_skills, '') else skills end,
-      lang = case when lang = '' then coalesce(v_lang, '') else lang end
+      lang = case when lang = '' then coalesce(v_lang, '') else lang end,
+      mis = case when mis = '' then coalesce(v_mis, '') else mis end
     where id = r.id;
     result := 'dilengkapi';
   else
@@ -130,7 +132,8 @@ begin
       province = coalesce(nullif(v_prov, ''), province),
       chapter = coalesce(nullif(v_chap, ''), chapter),
       skills = coalesce(nullif(v_skills, ''), skills),
-      lang = coalesce(nullif(v_lang, ''), lang)
+      lang = coalesce(nullif(v_lang, ''), lang),
+      mis = coalesce(nullif(v_mis, ''), mis)
     where id = r.id;
     result := 'diperbarui';
   end if;

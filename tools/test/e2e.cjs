@@ -78,7 +78,7 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.waitForSelector("text=belum terdaftar di roster");
   });
   await step("Form answer arrives; wrong WA rejected", async () => {
-    await p.evaluate(() => window.__mockdb.members.push({ id: crypto.randomUUID(), user_id: null, email: "wulan@contoh.id", name: "Wulan Pratiwi", phone: "081355554444", role: "Promosi Kebersihan", level: "Relawan (KSR/TSR)", province: "Jawa Tengah", chapter: "PMI Kota Semarang", skills: "", lang: "", status: "tersedia", photo: "", source: "form", sheet_sig: null, has_password: false, created_at: new Date().toISOString() }));
+    await p.evaluate(() => window.__mockdb.members.push({ id: crypto.randomUUID(), user_id: null, email: "wulan@contoh.id", name: "Wulan Pratiwi", phone: "081355554444", mis: "MIS-3374-0012", role: "Promosi Kebersihan", level: "Relawan (KSR/TSR)", province: "Jawa Tengah", chapter: "PMI Kota Semarang", skills: "", lang: "", status: "tersedia", photo: "", source: "form", sheet_sig: null, has_password: false, created_at: new Date().toISOString() }));
     await p.fill("#awa", "0811111111"); await p.click("#waform button[type=submit]"); await p.waitForSelector("text=Nomor WhatsApp tidak cocok");
   });
   await step("right WA → must create a password first", async () => {
@@ -133,6 +133,8 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.waitForTimeout(800);
     if (await p.locator("[data-act=mode][data-v=anggota]").count()) await p.click("[data-act=mode][data-v=anggota]");
     await p.waitForSelector("text=Pengumuman anggota terpilih", { timeout: 4000 }); await p.waitForSelector("text=Selamat, Anda terpilih");
+    await p.waitForSelector("text=MIS-3374-0012");
+    await p.click("#m-card [data-act=card]"); await p.waitForTimeout(1500); await shot("06-idcard"); await p.click("#modal [data-act=close]");
     await p.click("#m-rep [data-act=report]"); await p.fill("#rsum", "Promosi kebersihan di 3 posko pengungsian."); await p.fill("#rm-people", "1250");
     await p.click("[data-act=report-save]"); await p.waitForTimeout(600); await p.waitForSelector("#m-rep >> text=Terkirim");
   });
