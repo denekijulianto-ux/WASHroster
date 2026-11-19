@@ -1,4 +1,4 @@
-// Roster WASH PMI — kirim alert / pengumuman ke semua anggota lewat email (Gmail) dan WhatsApp (Fonnte).
+// Roster WASH PMI — kirim alert / pengumuman ke anggota lewat email (Gmail) dan WhatsApp (Fonnte).
 // Hanya admin yang masuk dengan password (public.is_admin()) yang boleh memanggil fungsi ini.
 // Rahasia yang dipakai (diisi di Supabase → Edge Functions → Secrets):
 //   GMAIL_USER, GMAIL_APP_PASSWORD   → email lewat smtp.gmail.com:465
@@ -77,8 +77,21 @@ Deno.serve(async (req) => {
 
   let q = svc.from("members").select("name, email, phone, role, status");
   const wantRole = a.kind === "non_bencana" ? (a.focus || "") : a.role;
-  if (kind === "alert" && body.audience === "role" && wantRole) q = q.eq("role", wantRole);
-  if (kind === "alert" && body.audience === "available") q = q.eq("status", "tersedia");
+  const aud = String(body.audience || "all");
+  const NONE = "00000000-0000-0000-0000-000000000000";
+  if (aud === "role" && wantRole) q = q.eq("role", wantRole);
+  if (aud === "available") q = q.eq("status", "tersedia");
+  if (aud === "candidates" || aud === "selected") {
+    const { data: cs } = await svc.from("candidates").select("member_id, state").eq("alert_id", a.id);
+    const ids = (cs || []).filter((c) => aud === "selected" ? c.state === "terpilih" : c.state !== "menolak").map((c) => c.member_id);
+    q = q.in("id", ids.length ? ids : [NONE]);
+  }
+  if (aud === "custom") {
+    const ids = (Array.isArray(body.member_ids) ? body.member_ids : []).map(String)
+      .filter((x: string) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 2000);
+    if (!ids.length) return json({ error: "no_recipients" }, 400);
+    q = q.in("id", ids);
+  }
   const { data: members } = await q;
   const list = members || [];
 
@@ -127,6 +140,6 @@ Deno.serve(async (req) => {
   }
 
   const { data: who } = await userClient.auth.getUser();
-  await svc.from("broadcasts").insert({ kind, alert_id: a.id, audience: kind === "alert" ? (body.audience || "all") : "all", ...result, sent_by: who?.user?.id || null });
+  await svc.from("broadcasts").insert({ kind, alert_id: a.id, audience: aud, ...result, sent_by: who?.user?.id || null });
   return json({ ok: true, ...result, channels });
 });

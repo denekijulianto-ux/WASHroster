@@ -1390,7 +1390,24 @@ async function bcCall(body){
   catch(e){return {httpOk:false,error:"network"}}}
 function bcHistory(aid){const h=(S.broadcasts||[]).filter(b=>b.alert_id===aid);if(!h.length)return"";
   return `<div class="dlist" style="font-size:.8rem">${h.slice(0,4).map(b=>`<div class="ditem"><div><div class="t" style="font-size:.82rem">${b.kind==="alert"?"Alert":"Pengumuman"} terkirim ${stampT(Date.parse(b.at))}</div><div class="s">${b.email_sent} email${b.email_error?" (ada error)":""}</div></div></div>`).join("")}</div>`}
-function bcRecipients(kind,a,aud){const ms=members();return kind==="alert"&&aud==="role"?ms.filter(m=>m.role===wantRole(a)):kind==="alert"&&aud==="available"?ms.filter(m=>m.status==="tersedia"):ms}
+function bcRecipients(kind,a,aud){const ms=members(),cm=a.cand||{};
+  if(aud==="role")return ms.filter(m=>m.role===wantRole(a));
+  if(aud==="available")return ms.filter(m=>m.status==="tersedia");
+  if(aud==="candidates")return ms.filter(m=>cm[m.id]&&cm[m.id].state!=="menolak");
+  if(aud==="selected")return ms.filter(m=>cm[m.id]&&cm[m.id].state==="terpilih");
+  if(aud==="custom")return ms.filter(m=>bcState&&bcState.ids.has(m.id));
+  return ms}
+function bcAudOpts(kind,a,cur){const n=v=>bcRecipients(kind,a,v).length,o=(v,l)=>`<option value="${v}" ${cur===v?"selected":""}>${l} (${n(v)})</option>`;
+  return o("all","Semua anggota roster")+(kind==="announce"?o("selected","Hanya anggota terpilih"):"")+o("candidates","Hanya kandidat alert ini")+(kind==="alert"&&wantRole(a)?o("role","Hanya profil "+esc(wantRole(a))):"")+(kind==="alert"?o("available","Hanya yang berstatus tersedia"):"")+`<option value="custom" ${cur==="custom"?"selected":""}>Pilih orang tertentu…${cur==="custom"?" ("+bcState.ids.size+")":""}</option>`}
+function bcPicker(a){const st=bcState,q=(st.q||"").trim().toLowerCase(),cm=a.cand||{};
+  const list=members().filter(m=>!q||[m.name,m.role,m.province,m.chapter,m.email].join(" ").toLowerCase().includes(q))
+    .sort((x,y)=>((cm[y.id]&&cm[y.id].state==="terpilih")-(cm[x.id]&&cm[x.id].state==="terpilih"))||(!!cm[y.id]-!!cm[x.id])||x.name.localeCompare(y.name));
+  return `<div class="field"><div class="row" style="gap:6px;flex-wrap:nowrap"><label class="search" style="flex:1">${I.search}<input id="bc-q" placeholder="Cari nama, profil, provinsi…" value="${esc(st.q||"")}" aria-label="Cari penerima"></label><button class="btn sm" data-act="bc-all">Pilih yang tampil</button><button class="btn sm ghost" data-act="bc-none">Kosongkan</button></div>
+    <div class="pick" id="bc-list" style="max-height:240px">${list.map(m=>{const c=cm[m.id];return `<label><input type="checkbox" data-bcm="${m.id}" ${st.ids.has(m.id)?"checked":""}>${av(m,"sm")}<span class="grow"><b>${esc(m.name)}</b><br><small class="muted">${esc(m.role)} · ${esc(m.province||"-")}${m.email?"":" · tanpa email"}</small></span>${c?pill(CSTAT,c.state):""}</label>`}).join("")||`<p class="muted" style="padding:10px">Tidak ada anggota yang cocok.</p>`}</div>
+    <span class="muted" style="font-size:.8rem">${st.ids.size} orang dipilih.</span></div>`}
+function bcPersonalWA(kind,a,rec){const withWa=rec.filter(m=>m.phone);if(!withWa.length)return"";const t=bcText(kind,a);
+  return `<div class="lbox"><b>${I.wa.replace("<svg",'<svg width="16" height="16" style="vertical-align:-3px;margin-right:4px"')}WhatsApp pribadi (gratis)</b><span class="muted" style="font-size:.84rem">Tekan nama untuk membuka chat dengan pesan sudah terisi, lalu kirim.</span>
+    <div class="row" style="gap:6px">${withWa.slice(0,60).map(m=>`<a class="btn sm wa" target="_blank" rel="noopener" href="${esc(waHref(m.phone,t))}">${I.wa}${esc(m.name)}</a>`).join("")}</div>${withWa.length>60?`<span class="muted" style="font-size:.8rem">Hanya 60 nama pertama yang ditampilkan.</span>`:""}</div>`}
 function bcText(kind,a){return kind==="announce"?annText(a):`*ALERT PENUGASAN · ROSTER WASH PMI*\nKode: ${a.code}\nOperasi: ${a.title}${a.emergency&&a.kind!=="non_bencana"?` (${a.emergency})`:""}\n${a.kind==="non_bencana"?"Jenis: "+(a.emergency||"Kegiatan non bencana")+"\n":""}Posisi dibutuhkan: ${a.role}${a.focus?" (bidang "+a.focus+")":""} · ${a.slots||1} orang\nLokasi: ${a.location}\nPeriode: ${fmtLong(a.start)} – ${fmtLong(endOf(a))} (${a.dur} hari)\nBatas konfirmasi: ${fmtLong(a.deadline)}\n${a.desc?"\n"+a.desc+"\n":""}\nBila bersedia, masuk ke aplikasi Roster WASH lalu tekan *Ajukan diri* pada alert ini sebelum batas konfirmasi.\n${redirectTo()}\n— Admin Roster WASH PMI`}
 let bcState=null;
 function bcSender(){try{return localStorage.getItem("rosterwash.sender")||""}catch(e){return ""}}
@@ -1407,24 +1424,28 @@ function bcRender(){
   const rec=bcRecipients(st.kind,a,st.aud),g=gmailLinks(st.kind,a,rec);
   const ch=st.channels,auto=!!(ch&&ch.email);
   const title=st.kind==="alert"?"Kirim alert ke anggota":"Kirim pengumuman ke anggota";
-  openModal(title,st.result?bcResultHTML(st.result)+waGroupBox(st.kind,a):waGroupBox(st.kind,a)+`<span class="lbl-up" style="margin-top:4px">Email</span>
-   ${st.kind==="alert"?`<div class="field"><label for="bc-aud">Penerima</label><select class="input" id="bc-aud"><option value="all" ${st.aud==="all"?"selected":""}>Semua anggota roster (${members().length})</option>${wantRole(a)?`<option value="role" ${st.aud==="role"?"selected":""}>Hanya profil ${esc(wantRole(a))} (${bcRecipients("alert",a,"role").length})</option>`:""}<option value="available" ${st.aud==="available"?"selected":""}>Hanya yang berstatus tersedia (${bcRecipients("alert",a,"available").length})</option></select></div>`:`<p class="muted">Dikirim ke semua anggota roster.</p>`}
+  const targeted=["candidates","selected","custom"].includes(st.aud);
+  const keepScroll=($("#bc-list")||{}).scrollTop||0;
+  openModal(title,(st.result?bcResultHTML(st.result):"")+`<div class="field"><label for="bc-aud">Penerima</label><select class="input" id="bc-aud">${bcAudOpts(st.kind,a,st.aud)}</select></div>
+   ${st.aud==="custom"&&!st.result?bcPicker(a):""}
+   ${targeted?bcPersonalWA(st.kind,a,rec):waGroupBox(st.kind,a)}`+(st.result?"":`<span class="lbl-up" style="margin-top:4px">Email</span>
    <div class="lbox"><b>${g.emails.length} alamat email</b><span class="muted" style="font-size:.84rem">Dikirim sebagai BCC, jadi alamat anggota tidak saling terlihat.</span></div>
-   ${!ch?`<div class="skeleton" style="height:56px"></div>`:auto?`<div class="note" style="background:var(--ok-soft);color:var(--ok)"><b>Pengiriman otomatis aktif.</b> Tekan <b>Kirim sekarang</b>; email langsung terkirim dari server.</div>`
+   ${!ch?`<div class="skeleton" style="height:56px"></div>`:auto?`<div class="note" style="background:var(--ok-soft);color:var(--ok)"><b>Pengiriman otomatis aktif.</b> Tekan tombol <b>Kirim email</b>; email langsung terkirim dari server.</div>`
      :`<div class="note" style="display:flex;flex-direction:column;gap:8px"><b style="color:var(--ink)">Kirim lewat Gmail Anda</b><span>Tekan tombol di bawah. Gmail terbuka dengan penerima, judul, dan isi pesan sudah terisi, lalu tekan <b>Kirim</b> di Gmail.${g.links.length>1?` Penerima dibagi per 40 alamat, jadi ada ${g.links.length} email.`:""}</span>
        <div class="field"><label for="bc-from">Kirim dari akun Gmail (opsional)</label><input class="input" id="bc-from" type="email" placeholder="mis. roster.wash@gmail.com" value="${esc(bcSender())}"><span class="hint">Akun ini harus sudah masuk di browser Anda. Kosongkan untuk memakai akun Gmail yang sedang terbuka.</span></div>
        <div class="row" style="gap:6px">${g.links.map((l,i)=>`<a class="btn ${i===0?"primary":""}" target="_blank" rel="noopener" href="${esc(l.href)}">${I.mail}${g.links.length>1?`Gmail ${i+1} (penerima ${l.from}–${l.to})`:"Buka di Gmail"}</a>`).join("")||`<span class="muted">Tidak ada alamat email.</span>`}</div>
        <span class="muted" style="font-size:.8rem">Ingin terkirim otomatis tanpa membuka Gmail? Isi rahasia <span class="mono">GMAIL_USER</span> dan <span class="mono">GMAIL_APP_PASSWORD</span> di Supabase → Edge Functions → Secrets.</span></div>`}
    <div class="field"><label>Isi pesan</label><div class="msgbox">${esc(bcText(st.kind,a).replace(/\*/g,""))}</div></div>
-   ${st.err?`<p class="err">${esc(st.err)}</p>`:""}`,
-   st.result?`<button class="btn primary" data-act="close">Selesai</button>`:auto?`<button class="btn" data-act="close">Nanti saja</button><button class="btn primary" data-act="bc-send" ${st.busy?"disabled":""}>${st.busy?"Mengirim…":"Kirim sekarang"}</button>`:`<button class="btn" data-act="close">Tutup</button>`,true)}
+   ${st.err?`<p class="err">${esc(st.err)}</p>`:""}`),
+   st.result?`<button class="btn primary" data-act="close">Selesai</button>`:auto?`<button class="btn" data-act="close">Nanti saja</button><button class="btn primary" data-act="bc-send" ${st.busy||!g.emails.length?"disabled":""}>${st.busy?"Mengirim…":`Kirim email ke ${g.emails.length} orang`}</button>`:`<button class="btn" data-act="close">Tutup</button>`,true);
+  const bl=$("#bc-list");if(bl)bl.scrollTop=keepScroll}
 function bcResultHTML(r){
   if(!r.httpOk)return `<p class="err">${r.error==="admin_only"?"Hanya admin yang masuk dengan password yang bisa mengirim.":r.error==="no_channel"?"Pengiriman otomatis belum aktif.":r.error==="network"?"Tidak bisa terhubung ke server.":"Gagal mengirim ("+esc(r.error||r.http)+")."}</p>`;
   return r.email_error?`<p class="err">Email gagal dikirim: ${esc(r.email_error)}</p><p class="muted">Periksa rahasia GMAIL_USER dan GMAIL_APP_PASSWORD di Supabase (harus akun Gmail yang sama dengan App Password).</p>`
     :`<div class="lbox">${pill({x:["Terkirim","ok"]},"x")}<span>${r.email_sent} email terkirim ke anggota (BCC).</span></div>`}
 async function broadcastModal(kind,aid){
   if(!S.isAdmin){toast("Masuk Mode Admin dulu.");return}
-  bcState={kind,aid,aud:"all",email:true,wa:true,channels:null,busy:false,err:"",result:null};bcRender();
+  bcState={kind,aid,aud:"all",ids:new Set(),q:"",email:true,wa:true,channels:null,busy:false,err:"",result:null};bcRender();
   const r=await bcCall({mode:"status"});
   if(!bcState||bcState.aid!==aid)return;
   if(!r.httpOk){bcState.err=r.error==="admin_only"?"Hanya admin yang masuk dengan password yang bisa mengirim.":"Server pengirim tidak bisa dihubungi.";bcState.channels={email:false,wa:false}}
@@ -1434,14 +1455,17 @@ async function bcSend(){
   const st=bcState;if(!st)return;
   const aud=$("#bc-aud");if(aud)st.aud=aud.value;
   st.busy=true;st.err="";bcRender();
-  const r=await bcCall({kind:st.kind,alert_id:st.aid,audience:st.aud,email:true,wa:false,link:redirectTo()});
+  if(st.aud==="custom"&&!st.ids.size){st.busy=false;st.err="Pilih minimal satu orang.";bcRender();return}
+  const r=await bcCall({kind:st.kind,alert_id:st.aid,audience:st.aud,member_ids:st.aud==="custom"?[...st.ids]:undefined,email:true,wa:false,link:redirectTo()});
   st.busy=false;st.result=r;bcRender();
   try{sb.from("broadcasts").select("*").order("at",{ascending:false}).limit(100).then(x=>{S.broadcasts=(x&&x.data)||[];render()},()=>{})}catch(e){}}
-document.addEventListener("change",e=>{if(e.target.id==="bc-aud"&&bcState){bcState.aud=e.target.value;bcRender()}
+document.addEventListener("change",e=>{if(e.target.id==="bc-aud"&&bcState){bcState.aud=e.target.value;bcState.result=null;bcRender()}
+  else if(e.target.dataset&&e.target.dataset.bcm&&bcState){e.target.checked?bcState.ids.add(e.target.dataset.bcm):bcState.ids.delete(e.target.dataset.bcm);bcRender()}
   else if(e.target.id==="bc-from"&&bcState){const v=e.target.value.trim().toLowerCase();try{v?localStorage.setItem("rosterwash.sender",v):localStorage.removeItem("rosterwash.sender")}catch(err){}bcRender()}});
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
   if(a==="bc-open")broadcastModal(b.dataset.k,b.dataset.a);
   else if(a==="bc-send")bcSend();
+  else if((a==="bc-all"||a==="bc-none")&&bcState){if(a==="bc-none")bcState.ids.clear();else document.querySelectorAll("#bc-list [data-bcm]").forEach(x=>bcState.ids.add(x.dataset.bcm));bcRender()}
   else if(a==="rsel"){e.stopPropagation();S.rsel=S.rsel||new Set();b.checked?S.rsel.add(b.dataset.m):S.rsel.delete(b.dataset.m);const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
   else if(a==="rsel-all"){S.rsel=S.rsel||new Set();const ids=filteredMembers().map(m=>m.id);if(b.checked)ids.forEach(id=>S.rsel.add(id));else ids.forEach(id=>S.rsel.delete(id));const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
   else if(a==="rsel-clear"){S.rsel.clear();const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
@@ -1506,7 +1530,7 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]
 const waShareHref=t=>"https://wa.me/?text="+encodeURIComponent(t);
 function waGroupBox(kind,a){
   const t=bcText(kind,a);
-  return `<div class="lbox" id="wagbox"><b>${I.wa}Grup WhatsApp Roster <span class="pill ok" style="margin-left:4px">Gratis</span></b>
+  return `<div class="lbox" id="wagbox"><b>${I.wa.replace("<svg",'<svg width="16" height="16" style="vertical-align:-3px;margin-right:4px"')}Grup WhatsApp Roster <span class="pill ok" style="margin-left:4px">Gratis</span></b>
     <span class="muted" style="font-size:.84rem">Tekan <b>Kirim ke grup WhatsApp</b>, pilih grup Roster WASH, lalu tekan kirim. Satu pesan sampai ke semua anggota grup.</span>
     <div class="row" style="gap:6px"><a class="btn wa primary" id="wagshare" target="_blank" rel="noopener" href="${esc(waShareHref(t))}">${I.wa}Kirim ke grup WhatsApp</a><button class="btn sm" data-act="wag-copy" data-k="${kind}" data-a="${a.id}">${I.copy}Salin teks</button>${S.waGroup?`<a class="btn sm ghost" target="_blank" rel="noopener" href="${esc(S.waGroup)}">Buka grup</a>`:""}</div>
     <div class="field"><label for="wagurl">Link undangan grup (opsional, tampil di beranda anggota agar bisa bergabung)</label><div class="row" style="flex-wrap:nowrap;gap:6px"><input class="input" id="wagurl" placeholder="https://chat.whatsapp.com/…" value="${esc(S.waGroup||"")}"><button class="btn sm" data-act="wag-save">Simpan</button></div></div></div>`}
@@ -1517,5 +1541,7 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]
     if(v&&!/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+/.test(v)){toast("Link grup harus diawali https://chat.whatsapp.com/");return}
     try{if(v)await write("set","settings","wa_group",{url:v});else await write("delete","settings","wa_group");S.waGroup=v;toast(v?"Link grup disimpan. Anggota melihat tombol Gabung grup.":"Link grup dihapus.")}catch(err){toast("Gagal menyimpan.")}return}
 },true);
+
+document.addEventListener("input",e=>{if(e.target.id==="bc-q"&&bcState){bcState.q=e.target.value;const pos=e.target.selectionStart;bcRender();const i=$("#bc-q");if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(err){}}}});
 
 boot();

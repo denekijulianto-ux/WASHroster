@@ -141,6 +141,20 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.click("#modal [data-act=close]");
     await p.waitForSelector("text=Diumumkan");
   });
+  await step("announcement to specific people only", async () => {
+    await p.click("[data-act=bc-open][data-k=announce]"); await p.waitForSelector("#bc-aud");
+    await p.selectOption("#bc-aud", "selected"); await p.waitForSelector("text=WhatsApp pribadi");
+    await p.selectOption("#bc-aud", "custom"); await p.waitForSelector("#bc-list");
+    if (!(await p.isDisabled("[data-act=bc-send]"))) throw new Error("send should be disabled with nobody picked");
+    await p.fill("#bc-q", "wulan"); await p.waitForTimeout(200);
+    if (await p.inputValue("#bc-q") !== "wulan") throw new Error("search lost focus/value");
+    await p.check("#bc-list [data-bcm]"); await p.waitForSelector("text=1 orang dipilih");
+    await p.waitForSelector("[data-act=bc-send]:has-text('Kirim email ke 1 orang')"); await shot("05b-custom");
+    await p.click("[data-act=bc-send]"); await p.waitForSelector("text=3 email terkirim");
+    const last = sent[sent.length - 1];
+    if (last.audience !== "custom" || !last.member_ids || last.member_ids.length !== 1) throw new Error(JSON.stringify(last));
+    await p.click("#modal [data-act=close]");
+  });
   await step("admin sees password status and can reset login", async () => {
     await p.click(".tab:has-text('Anggota Roster')"); await p.click("tr[data-act=selm]:has-text('Wulan')"); await p.waitForSelector("text=Sudah memakai password.");
   });
