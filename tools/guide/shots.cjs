@@ -61,6 +61,8 @@ const OUT = process.argv[2] || "/tmp";
   await p.click("#modal [data-act=close]");
   // 11. WhatsApp group
   await top("#washpedia", 90); await shot("11-wagroup");
+  // 13. member map (bottom of home)
+  await p.waitForSelector("#m-map .mbub"); await top("#m-map", 70); await shot("13-map");
   // 12. bottom nav / logout
   await p.evaluate(() => window.scrollTo(0, 0)); await shot("12-top");
   await b.close();

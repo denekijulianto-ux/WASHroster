@@ -286,8 +286,8 @@ textarea.input{min-height:90px;resize:vertical}
 .mapgrid2{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(220px,1fr);gap:0}
 .mapbox{position:relative;min-height:420px;border-right:1px solid var(--line)}
 #rmap-slot,.rmap{position:absolute;inset:0}
-.rmap{background:linear-gradient(180deg,#EEF5FC,#DDEAF8);border-bottom-left-radius:inherit}
-.rmap.dark{background:linear-gradient(180deg,#0B1626,#0E1C30)}
+.rmap,.rmap.leaflet-container{background:linear-gradient(180deg,#EEF5FC,#DDEAF8);border-bottom-left-radius:inherit}
+.rmap.dark,.rmap.dark.leaflet-container{background:linear-gradient(180deg,#0B1626,#0E1C30)}
 .rmap .leaflet-control-attribution{background:rgba(255,255,255,.75);font-size:10px;border-radius:6px 0 0 0}
 .maplegend{position:absolute;left:12px;bottom:12px;z-index:500;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.92);border-radius:999px;padding:5px 12px;font-size:.72rem;color:#3A4A60;box-shadow:0 2px 8px -4px rgba(0,0,0,.3)}
 .maplegend span{display:inline-flex;align-items:center;gap:5px}
@@ -305,6 +305,7 @@ textarea.input{min-height:90px;resize:vertical}
 .maplist{max-height:420px;overflow:auto;padding:8px}
 .mrow{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;padding:8px;border-radius:10px;cursor:pointer;text-align:left;color:inherit;font:inherit}
 .mrow:hover{background:var(--teal-soft)}
+.mrow.static{cursor:default}.mrow.static:hover{background:transparent}
 .mr-i{flex:none;width:22px;font:600 .74rem/1 var(--mono,ui-monospace,monospace);color:var(--muted);text-align:right}
 .mr-n{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.mr-n b{font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mr-bar{height:6px;border-radius:99px;background:var(--teal-soft);overflow:hidden}.mr-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#4C93E6,#17478C)}
@@ -817,7 +818,8 @@ function vMemberHome(){
   <div class="grid2">
     <section class="card" id="m-card"><div class="card-h"><h2>Kartu ID saya</h2></div><div class="card-b">${myAsg.length?`<div class="cards">${myAsg.map(({a,c})=>`<button class="tile" data-act="card" data-a="${a.id}" data-m="${S.uid}"><div class="band"><span>${phase(a)==="selesai"?"Selesai":phase(a)==="aktif"?"Bertugas":"Akan berangkat"}</span><span class="mono">${esc(c.cardNo)}</span></div><div class="body"><b>${esc(a.title)}</b><dl class="kv"><dt>Posisi</dt><dd>${esc(a.role)}</dd><dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Periode</dt><dd>${fmt(a.start)} – ${fmt(endOf(a))}</dd></dl></div></button>`).join("")}</div>`:`<p class="muted">Kartu ID muncul di sini begitu Anda terpilih dalam sebuah penugasan.</p>`}</div></section>
     <section class="card" id="m-rep"><div class="card-h"><h2>Laporan pasca penugasan</h2></div><div class="card-b">${myAsg.length?`<div class="dlist">${myAsg.map(({a})=>{const r=reps[a.id],ph=phase(a);return `<div class="ditem"><div><div class="t">${esc(a.code)} · ${esc(a.title)}</div><div class="s">${r?"Terkirim "+stampT(r.at):ph==="akan"?"Bisa diisi setelah penugasan dimulai":ph==="selesai"?"Penugasan selesai, laporan belum dikirim":"Penugasan berjalan"}</div></div>${r?pill({x:["Terkirim","ok"]},"x"):ph==="selesai"?pill({x:["Belum dikirim","red"]},"x"):""}${ph!=="akan"?`<button class="btn sm ${r?"":"primary"}" data-act="report" data-a="${a.id}">${r?"Ubah laporan":"Tulis laporan"}</button>`:""}</div>`}).join("")}</div>`:`<p class="muted">Setelah bertugas, isi laporan singkat di sini: kegiatan, capaian, kendala, rekomendasi, dan kondisi Anda.</p>`}</div></section>
-  </div>`;
+  </div>
+  ${typeof mapCard==="function"?mapCard():""}`;
 }
 function reportForm(aid){
   const a=S.alerts[aid],me=S.members[S.uid];if(!a||!me)return;const r=(me.reports||{})[aid]||{};const mt=r.metrics||{};

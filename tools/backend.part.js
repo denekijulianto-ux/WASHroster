@@ -75,6 +75,7 @@ async function loadAll(){
   const ss=s.find(x=>x.key==="sheet_source");S.sheetSource=ss?ss.value:null;
   S.uid=myId||"me";S.mcp=S.isAdmin?{}:null;
   S.meProfile={email:(S.session.user.email||"").toLowerCase(),name:""};
+  S.geo=null;
   S.loaded=true;S.loadErr=false;render();
   if(S.isAdmin)startAutoSync();
 }

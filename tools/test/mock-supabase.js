@@ -66,6 +66,7 @@ function builder(t) {
   return b;
 }
 const rpcs = {
+  roster_geo_stats() { if (!uid() || (!isAdmin() && !myMember())) return { data: [], error: null }; const g = {}; db.members.forEach(m => { const k = [m.province || "", m.level, m.status].join("|"); g[k] = (g[k] || 0) + 1; }); return { data: Object.entries(g).map(([k, n]) => { const [province, level, status] = k.split("|"); return { province, level, status, n }; }), error: null }; },
   app_settings() { const s = db.settings.find(x => x.key === "app"); return { data: s ? s.value : {}, error: null }; },
   save_my_profile({ p }) {
     if (!uid()) return err("Belum masuk"); if (!(p.name || "").trim()) return err("Nama wajib diisi");

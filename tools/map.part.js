@@ -33,22 +33,28 @@ function normProv(s) {
   const al = Object.keys(PROV_ALIAS).find(a => a.length > 3 && k.includes(a)); return al ? PROV_ALIAS[al] : null;
 }
 const MAPF = { all: ["Semua", m => true], tersedia: ["Tersedia", m => m.status === "tersedia"], relawan: ["Relawan", m => /relawan/i.test(m.level || "")], staf: ["Staf", m => m.level === "Staf PMI"], pengurus: ["Pengurus", m => m.level === "Pengurus PMI"] };
+const mapIsMember = () => memberView();
 function provStats() {
   const f = (MAPF[S.mapF] || MAPF.all)[1], by = {}; let unknown = 0, total = 0;
-  members().filter(f).forEach(m => {
-    total++; const p = normProv(m.province); if (!p) { unknown++; return; }
+  const units = mapIsMember() ? (S.geo || []).map(g => ({ province: g.province, level: g.level, status: g.status, w: g.n })) : members().map(m => Object.assign({ w: 1 }, m));
+  units.filter(f).forEach(m => {
+    const w = m.w; total += w; const p = normProv(m.province); if (!p) { unknown += w; return; }
     const o = by[p] || (by[p] = { p, n: 0, avail: 0, rel: 0, staf: 0, peng: 0, roles: {} });
-    o.n++; if (m.status === "tersedia") o.avail++; if (m.level === "Staf PMI") o.staf++; else if (m.level === "Pengurus PMI") o.peng++; else o.rel++;
-    o.roles[m.role] = (o.roles[m.role] || 0) + 1;
+    o.n += w; if (m.status === "tersedia") o.avail += w; if (m.level === "Staf PMI") o.staf += w; else if (m.level === "Pengurus PMI") o.peng += w; else o.rel += w;
+    if (m.role) o.roles[m.role] = (o.roles[m.role] || 0) + w;
   });
   return { list: Object.values(by).sort((a, b) => b.n - a.n || a.p.localeCompare(b.p)), unknown, total };
 }
 function mapCard() {
-  const { list, unknown, total } = provStats(), max = list[0] ? list[0].n : 1, all = members().length;
-  return `<section class="card mapcard" id="sec-map"><div class="card-h"><div><h2>Sebaran anggota roster</h2><p class="muted" style="font-size:.84rem;margin-top:2px"><b style="color:var(--ink)">${total}</b> anggota di <b style="color:var(--ink)">${list.length}</b> provinsi${list[0] ? ` · terbanyak di ${esc(list[0].p)} (${list[0].n})` : ""}</p></div>
+  const mem = mapIsMember();
+  if (mem && !S.geo) { loadGeo(); return `<section class="card mapcard" id="sec-map"><div class="card-h"><h2>Sebaran anggota roster</h2></div><div class="card-b"><div class="skeleton" style="height:260px"></div></div></section>`; }
+  const { list, unknown, total } = provStats(), max = list[0] ? list[0].n : 1;
+  const row = (o, i) => { const inner = `<span class="mr-i">${i + 1}</span><span class="mr-n"><b>${esc(o.p)}</b><span class="mr-bar"><i style="width:${Math.max(6, o.n / max * 100)}%"></i></span></span><span class="mr-c">${o.n}</span>`;
+    return mem ? `<div class="mrow static">${inner}</div>` : `<button class="mrow" data-act="mapprov" data-v="${esc(o.p)}" title="Lihat anggota ${esc(o.p)}">${inner}</button>`; };
+  return `<section class="card mapcard" id="${mem ? "m-map" : "sec-map"}"><div class="card-h"><div><h2>Sebaran anggota roster</h2><p class="muted" style="font-size:.84rem;margin-top:2px">${mem ? "Rekan sesama anggota roster WASH PMI di seluruh Indonesia · " : ""}<b style="color:var(--ink)">${total}</b> anggota di <b style="color:var(--ink)">${list.length}</b> provinsi${list[0] ? ` · terbanyak di ${esc(list[0].p)} (${list[0].n})` : ""}</p></div>
     <div class="mapf" role="group" aria-label="Saring peta">${Object.entries(MAPF).map(([k, [l]]) => `<button class="${(S.mapF || "all") === k ? "on" : ""}" data-act="mapf" data-v="${k}">${l}</button>`).join("")}</div></div>
     <div class="mapgrid2"><div class="mapbox"><div id="rmap-slot"></div><div class="maplegend"><span><i class="lg s"></i>sedikit</span><span><i class="lg m"></i></span><span><i class="lg l"></i>banyak</span></div></div>
-    <div class="maplist">${list.length ? list.map((o, i) => `<button class="mrow" data-act="mapprov" data-v="${esc(o.p)}" title="Lihat anggota ${esc(o.p)}"><span class="mr-i">${i + 1}</span><span class="mr-n"><b>${esc(o.p)}</b><span class="mr-bar"><i style="width:${Math.max(6, o.n / max * 100)}%"></i></span></span><span class="mr-c">${o.n}</span></button>`).join("") : `<p class="muted" style="padding:10px">Belum ada anggota dengan provinsi.</p>`}
+    <div class="maplist">${list.length ? list.map(row).join("") : `<p class="muted" style="padding:10px">Belum ada anggota dengan provinsi.</p>`}
     ${unknown ? `<p class="muted" style="font-size:.78rem;padding:8px 4px 0">${unknown} anggota belum mengisi provinsi atau nama provinsinya tidak dikenali.</p>` : ""}</div></div></section>`;
 }
 const ID_BOUNDS = [[-10.5, 95], [5.8, 141]];
@@ -89,8 +95,8 @@ function drawBubbles() {
     const z = RMAP.getZoom(), sc = Math.max(.48, Math.min(1.5, 1 + (z - 4.5) * .4)), d = Math.round((18 + 26 * Math.sqrt(o.n / max)) * sc), lvl = o.n / max > .66 ? "l" : o.n / max > .33 ? "m" : "s";
     const roles = Object.entries(o.roles).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([r, n]) => `${esc(r)} (${n})`).join("<br>");
     const mk = L.marker(ll, { icon: L.divIcon({ className: "", html: `<div class="mbub ${lvl}" style="width:${d}px;height:${d}px;font-size:${d > 40 ? 14 : d > 28 ? 12 : d > 18 ? 10 : 9}px;border-width:${d > 22 ? 2.5 : 1.5}px">${o.n}</div>`, iconSize: [d, d], iconAnchor: [d / 2, d / 2] }), title: o.p, keyboard: true, riseOnHover: true });
-    mk.bindTooltip(`<div class="mtip"><b>${esc(o.p)}</b><div class="mtip-n">${o.n} anggota · ${o.avail} tersedia</div><div class="mtip-k"><span>Relawan <b>${o.rel}</b></span><span>Staf <b>${o.staf}</b></span><span>Pengurus <b>${o.peng}</b></span></div>${roles ? `<div class="mtip-r">${roles}</div>` : ""}<div class="mtip-h">Klik untuk melihat daftar anggota</div></div>`, { direction: "top", offset: [0, -d / 2], opacity: 1, className: "mtipwrap" });
-    mk.on("click", () => goProv(o.p));
+    mk.bindTooltip(`<div class="mtip"><b>${esc(o.p)}</b><div class="mtip-n">${o.n} anggota · ${o.avail} tersedia</div><div class="mtip-k"><span>Relawan <b>${o.rel}</b></span><span>Staf <b>${o.staf}</b></span><span>Pengurus <b>${o.peng}</b></span></div>${roles ? `<div class="mtip-r">${roles}</div>` : ""}${mapIsMember() ? "" : `<div class="mtip-h">Klik untuk melihat daftar anggota</div>`}</div>`, { direction: "top", offset: [0, -d / 2], opacity: 1, className: "mtipwrap" });
+    if (!mapIsMember()) mk.on("click", () => goProv(o.p));
     RMAP_LAYER.addLayer(mk);
   });
 }
@@ -106,3 +112,10 @@ document.addEventListener("click", e => {
   else if (a === "mapprov") { e.stopImmediatePropagation(); goProv(b.dataset.v); }
   else if (a === "fprovnorm-clear") { e.stopImmediatePropagation(); S.f.provNorm = ""; render(); }
 }, true);
+
+let geoBusy = false;
+async function loadGeo() {
+  if (geoBusy || !sb || !S.session) return; geoBusy = true;
+  try { const { data, error } = await sb.rpc("roster_geo_stats"); S.geo = error ? [] : (data || []); } catch (e) { S.geo = []; }
+  geoBusy = false; render();
+}
