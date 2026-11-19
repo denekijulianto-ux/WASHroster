@@ -19,10 +19,18 @@ const OUT = process.env.SHOTS || "/tmp";
     const res = !st ? [404, { error: "not_registered" }] : st.pw ? [409, { error: "password_required" }] : core(st.phone) !== core(b.phone) ? [401, { error: "phone_mismatch" }] : [200, { token_hash: "th:" + b.email }];
     r.fulfill({ status: res[0], contentType: "application/json", body: JSON.stringify(res[1]) });
   });
+  const sent = [];
+  await p.route("**/functions/v1/broadcast", async r => {
+    const b = JSON.parse(r.request().postData() || "{}");
+    if (b.mode === "status") return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ channels: { email: true, wa: false } }) });
+    sent.push(b);
+    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, recipients: 3, email_sent: 3, email_error: null, wa_sent: 0, wa_error: null, channels: { email: true, wa: false } }) });
+  });
   const login = async (email, pw) => { await p.fill("#lmail", email); await p.fill("#lpw", pw); await p.click("#pwform button[type=submit]"); };
   const logout = async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#pwform"); };
 
   await p.goto(URL); await p.waitForTimeout(600);
+  await p.evaluate(() => ["Hapus Satu", "Hapus Dua"].forEach((n, i) => window.__mockdb.members.push({ id: crypto.randomUUID(), user_id: null, email: "hapus" + i + "@contoh.id", name: n, phone: "08120000000" + i, role: "Kualitas Air", level: "Relawan (KSR/TSR)", province: "Bali", chapter: "", skills: "", lang: "", status: "tersedia", photo: "", source: "form", sheet_sig: null, has_password: false, created_at: new Date().toISOString() })));
   await step("login page (email + password) shown when signed out", async () => { await p.waitForSelector("#pwform"); });
   await shot("01-login");
   await step("admin logs in with email + password", async () => {
@@ -35,6 +43,21 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.fill("#aloc", "Kec. Karanganyar, Demak"); await p.fill("#astart", t); await p.fill("#adead", t); await p.fill("#aslots", "2");
     await p.click("[data-act=save-alert]"); await p.waitForTimeout(800);
     if (!(await p.locator("text=WASH-").count())) throw new Error("alert code not visible");
+  });
+  await step("after creating, 'send alert to all members' opens; email sends, WA shown as not active", async () => {
+    await p.waitForSelector("text=Kirim alert ke anggota", { timeout: 4000 });
+    await p.waitForSelector("text=Belum aktif: isi rahasia FONNTE_TOKEN");
+    await p.click("[data-act=bc-send]"); await p.waitForSelector("text=3 email terkirim");
+    if (sent[0].kind !== "alert" || sent[0].email !== true || sent[0].wa !== false) throw new Error(JSON.stringify(sent[0]));
+    await p.click("#modal [data-act=close]");
+  });
+  await shot("03-broadcast");
+  await step("admin deletes two members at once", async () => {
+    await p.click(".tab:has-text('Anggota Roster')"); await p.waitForSelector("text=Hapus Satu");
+    await p.check("tr:has-text('Hapus Satu') [data-act=rsel]"); await p.check("tr:has-text('Hapus Dua') [data-act=rsel]");
+    await p.waitForSelector("text=2 anggota dipilih");
+    await p.click("[data-act=rsel-del]"); await p.click("[data-act=rsel-del]"); await p.waitForTimeout(800);
+    if (await p.locator("text=Hapus Satu").count()) throw new Error("still listed");
   });
   await step("admin logs out", logout);
 
@@ -70,11 +93,15 @@ const OUT = process.env.SHOTS || "/tmp";
   });
 
   await step("admin selects the applicant and announces", async () => {
-    await login("admin@pmi.id", "rahasia123"); await p.waitForSelector("text=Seleksi kandidat");
+    await login("admin@pmi.id", "rahasia123"); await p.waitForSelector("text=Mode admin"); await p.click(".tab:has-text('Beranda')"); await p.waitForSelector("text=Seleksi kandidat");
     await p.click("[data-act=select]"); await p.waitForTimeout(1500);
     await p.waitForSelector("text=Kartu ID penugasan"); await p.click("#modal [data-act=close]");
     await p.click(".tab:has-text('Seleksi Kandidat')"); await p.waitForTimeout(400);
     await p.fill("#annnote", "Briefing di Markas PMI Jateng pukul 08.00."); await p.click("[data-act=announce]"); await p.waitForTimeout(600);
+    await p.waitForSelector("text=Kirim pengumuman hasil seleksi", { timeout: 4000 });
+    await p.click("[data-act=bc-send]"); await p.waitForSelector("text=3 email terkirim");
+    if (sent[sent.length - 1].kind !== "announce") throw new Error("announce not sent");
+    await p.click("#modal [data-act=close]");
     await p.waitForSelector("text=Diumumkan");
   });
   await step("admin sees password status and can reset login", async () => {

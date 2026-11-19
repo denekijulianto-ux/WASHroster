@@ -4,7 +4,7 @@
 const uuid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 const today = () => new Date().toISOString().slice(0, 10);
-const db = { members: [], alerts: [], candidates: [], reports: [], settings: [], admins: [] };
+const db = { members: [], alerts: [], candidates: [], reports: [], settings: [], admins: [], broadcasts: [] };
 const users = [{ id: "00000000-0000-0000-0000-0000000000aa", email: "admin@pmi.id", pw: "rahasia123" }];
 db.admins.push({ user_id: users[0].id, email: "admin@pmi.id", created_at: now() });
 window.__mockdb = db; window.__mockusers = users;
@@ -25,6 +25,7 @@ const canRead = (t, r) => {
   if (t === "reports") return me && r.member_id === me.id;
   if (t === "settings") return r.key === "app";
   if (t === "admins") return r.user_id === uid();
+  if (t === "broadcasts") return false;
   return false;
 };
 const err = (message, code = "P0001") => ({ data: null, error: { message, code } });
@@ -42,6 +43,7 @@ function builder(t) {
     select() { return b; }, insert(p) { op = "insert"; payload = p; return b; }, update(p) { op = "update"; payload = p; return b; },
     upsert(p) { op = "upsert"; payload = p; return b; }, delete() { op = "delete"; return b; },
     eq(c, v) { filters.push(r => r[c] === v); return b; },
+    order() { return b; }, limit() { return b; },
     not(c, o, v) { const set = v.replace(/[()]/g, "").split(","); filters.push(r => !set.includes(r[c])); return b; },
     then(res, rej) { return Promise.resolve(run()).then(res, rej); },
   };

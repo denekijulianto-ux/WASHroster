@@ -56,6 +56,7 @@ async function loadAll(){
   if(!sb||!S.session)return;
   const q=t=>sb.from(t).select("*");
   const res=await Promise.all(["members","alerts","candidates","reports","settings","admins"].map(q));
+  try{sb.from("broadcasts").select("*").order("at",{ascending:false}).limit(100).then(r=>{S.broadcasts=(r&&r.data)||[]},()=>{})}catch(e){}
   const bad=res.find(r=>r.error);if(bad){S.loadErr=true;S.loaded=false;console.error(bad.error);render();return}
   const [m,a,c,r,s,ad]=res.map(x=>x.data||[]);
   const me=S.session.user.id;
@@ -330,3 +331,59 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]
   if(a==="pw-help"){S.auth.err="";S.auth.info="Lupa password? Hubungi admin roster untuk mereset akses Anda. Setelah itu tekan Aktifkan akun dan buat password baru.";authRender()}
   else if(a==="reset-login"){if(!arm(b,"rl"+b.dataset.m,"Tekan lagi untuk mereset"))return;const {error}=await sb.from("members").update({has_password:false}).eq("id",b.dataset.m);if(error){toast("Gagal mereset: "+error.message);return}toast("Akses login direset. Anggota bisa mengaktifkan ulang dengan email & nomor WA.");loadAll()}
 });
+
+/* ---------- broadcast alert / announcement to all members (Edge Function "broadcast") ---------- */
+async function bcCall(body){
+  const {data:{session}}=await sb.auth.getSession();
+  try{const r=await fetch(SB_URL+"/functions/v1/broadcast",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+((session&&session.access_token)||SB_KEY)},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));return Object.assign({httpOk:r.ok,http:r.status},j)}
+  catch(e){return {httpOk:false,error:"network"}}}
+function bcHistory(aid){const h=(S.broadcasts||[]).filter(b=>b.alert_id===aid);if(!h.length)return"";
+  return `<div class="dlist" style="font-size:.8rem">${h.slice(0,4).map(b=>`<div class="ditem"><div><div class="t" style="font-size:.82rem">${b.kind==="alert"?"Alert":"Pengumuman"} terkirim ${stampT(Date.parse(b.at))}</div><div class="s">${b.email_sent} email${b.email_error?" (ada error)":""} · ${b.wa_sent} WhatsApp${b.wa_error?" (ada error)":""}</div></div></div>`).join("")}</div>`}
+function bcRecipients(kind,a,aud){const ms=members();return kind==="alert"&&aud==="role"?ms.filter(m=>m.role===a.role):kind==="alert"&&aud==="available"?ms.filter(m=>m.status==="tersedia"):ms}
+function bcText(kind,a){return kind==="announce"?annText(a):`*ALERT PENUGASAN · ROSTER WASH PMI*\nKode: ${a.code}\nOperasi: ${a.title}${a.emergency?` (${a.emergency})`:""}\nPosisi dibutuhkan: ${a.role} · ${a.slots||1} orang\nLokasi: ${a.location}\nPeriode: ${fmtLong(a.start)} – ${fmtLong(endOf(a))} (${a.dur} hari)\nBatas konfirmasi: ${fmtLong(a.deadline)}\n${a.desc?"\n"+a.desc+"\n":""}\nBila bersedia, masuk ke aplikasi Roster WASH lalu tekan *Ajukan diri* pada alert ini sebelum batas konfirmasi.\n${redirectTo()}\n— Admin Roster WASH PMI`}
+let bcState=null;
+function bcRender(){
+  const st=bcState,a=Object.assign({id:st.aid},S.alerts[st.aid]||{});
+  const rec=bcRecipients(st.kind,a,st.aud),nE=rec.filter(m=>/^\S+@\S+\.\S+$/.test(m.email||"")).length,nW=rec.filter(m=>waNum(m.phone).length>=10).length;
+  const ch=st.channels;
+  const chBox=(k,label,n,ok,why)=>`<label class="consent" style="${ok?"":"opacity:.6"}"><input type="checkbox" id="bc-${k}" ${ok&&st[k]?"checked":""} ${ok?"":"disabled"}><span><b style="color:var(--ink)">${label}</b> · ${n} penerima${ok?"":`<br><span class="muted">${why}</span>`}</span></label>`;
+  openModal(st.kind==="alert"?"Kirim alert ke anggota":"Kirim pengumuman hasil seleksi",
+   st.result?bcResultHTML(st.result):`
+   ${ch?"":`<div class="skeleton" style="height:60px"></div>`}
+   ${ch?`<div style="display:flex;flex-direction:column;gap:10px">${chBox("email","Email",nE,ch.email,"Belum aktif: isi rahasia GMAIL_USER dan GMAIL_APP_PASSWORD di Supabase.")}${chBox("wa","WhatsApp",nW,ch.wa,"Belum aktif: isi rahasia FONNTE_TOKEN di Supabase (butuh akun Fonnte).")}</div>`:""}
+   ${st.kind==="alert"?`<div class="field"><label for="bc-aud">Penerima</label><select class="input" id="bc-aud"><option value="all" ${st.aud==="all"?"selected":""}>Semua anggota roster (${members().length})</option><option value="role" ${st.aud==="role"?"selected":""}>Hanya profil ${esc(a.role)} (${bcRecipients("alert",a,"role").length})</option><option value="available" ${st.aud==="available"?"selected":""}>Hanya yang berstatus tersedia (${bcRecipients("alert",a,"available").length})</option></select></div>`:`<p class="muted">Dikirim ke semua ${members().length} anggota roster.</p>`}
+   <div class="field"><label>Isi pesan</label><div class="msgbox">${esc(bcText(st.kind,a))}</div></div>
+   ${st.err?`<p class="err">${esc(st.err)}</p>`:""}`,
+   st.result?`<button class="btn primary" data-act="close">Selesai</button>`:`<button class="btn" data-act="close">Nanti saja</button><button class="btn primary" data-act="bc-send" ${!ch||st.busy?"disabled":""}>${st.busy?"Mengirim…":"Kirim sekarang"}</button>`,true)}
+function bcResultHTML(r){
+  if(!r.httpOk)return `<p class="err">${r.error==="admin_only"?"Hanya admin yang masuk dengan password yang bisa mengirim.":r.error==="no_channel"?"Belum ada saluran yang aktif.":r.error==="network"?"Tidak bisa terhubung ke server.":"Gagal mengirim ("+esc(r.error||r.http)+")."}</p>`;
+  return `<div style="display:flex;flex-direction:column;gap:10px">
+    <div class="row" style="gap:8px">${pill({x:["Selesai","ok"]},"x")}<span class="muted">${r.recipients} anggota dituju</span></div>
+    <div class="lbox"><b>Email</b>${r.email_error?`<span class="err" style="font-size:.84rem">Gagal: ${esc(r.email_error)}</span>`:`<span>${r.email_sent} email terkirim (BCC, alamat anggota tidak saling terlihat).</span>`}</div>
+    <div class="lbox"><b>WhatsApp</b>${!r.channels||!r.channels.wa?`<span class="muted">Belum aktif.</span>`:r.wa_error?`<span class="err" style="font-size:.84rem">Gagal: ${esc(r.wa_error)}</span>`:`<span>${r.wa_sent} pesan masuk antrean Fonnte. Pesan dikirim bertahap dengan jeda 5–15 detik agar nomor tidak diblokir.</span>`}</div></div>`}
+async function broadcastModal(kind,aid){
+  if(!S.isAdmin){toast("Masuk Mode Admin dulu.");return}
+  bcState={kind,aid,aud:"all",email:true,wa:true,channels:null,busy:false,err:"",result:null};bcRender();
+  const r=await bcCall({mode:"status"});
+  if(!bcState||bcState.aid!==aid)return;
+  if(!r.httpOk){bcState.err=r.error==="admin_only"?"Hanya admin yang masuk dengan password yang bisa mengirim.":"Server pengirim tidak bisa dihubungi.";bcState.channels={email:false,wa:false}}
+  else bcState.channels=r.channels;
+  bcRender()}
+async function bcSend(){
+  const st=bcState;if(!st)return;
+  st.email=!!($("#bc-email")&&$("#bc-email").checked);st.wa=!!($("#bc-wa")&&$("#bc-wa").checked);const aud=$("#bc-aud");if(aud)st.aud=aud.value;
+  if(!st.email&&!st.wa){st.err="Pilih minimal satu saluran: Email atau WhatsApp.";bcRender();return}
+  st.busy=true;st.err="";bcRender();
+  const r=await bcCall({kind:st.kind,alert_id:st.aid,audience:st.aud,email:st.email,wa:st.wa,link:redirectTo()});
+  st.busy=false;st.result=r;bcRender();
+  try{sb.from("broadcasts").select("*").order("at",{ascending:false}).limit(100).then(x=>{S.broadcasts=(x&&x.data)||[];render()},()=>{})}catch(e){}}
+document.addEventListener("change",e=>{if(e.target.id==="bc-aud"&&bcState){bcState.aud=e.target.value;bcState.email=!!($("#bc-email")&&$("#bc-email").checked);bcState.wa=!!($("#bc-wa")&&$("#bc-wa").checked);bcRender()}});
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="bc-open")broadcastModal(b.dataset.k,b.dataset.a);
+  else if(a==="bc-send")bcSend();
+  else if(a==="rsel"){e.stopPropagation();S.rsel=S.rsel||new Set();b.checked?S.rsel.add(b.dataset.m):S.rsel.delete(b.dataset.m);const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
+  else if(a==="rsel-all"){S.rsel=S.rsel||new Set();const ids=filteredMembers().map(m=>m.id);if(b.checked)ids.forEach(id=>S.rsel.add(id));else ids.forEach(id=>S.rsel.delete(id));const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
+  else if(a==="rsel-clear"){S.rsel.clear();const l=$("#rlist");if(l)l.innerHTML=rosterTable()}
+  else if(a==="rsel-del"){if(!arm(b,"rdel","Tekan lagi: hapus permanen"))return;const ids=[...S.rsel];S.suspend=true;let ok=0;for(const id of ids){try{await write("delete","members",id);ok++}catch(err){}}S.suspend=false;S.rsel.clear();if(ids.includes(S.selMember))S.selMember=null;toast(ok+" anggota dihapus");await loadAll()}
+},true);
