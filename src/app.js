@@ -1333,12 +1333,14 @@ function bcHistory(aid){const h=(S.broadcasts||[]).filter(b=>b.alert_id===aid);i
 function bcRecipients(kind,a,aud){const ms=members();return kind==="alert"&&aud==="role"?ms.filter(m=>m.role===a.role):kind==="alert"&&aud==="available"?ms.filter(m=>m.status==="tersedia"):ms}
 function bcText(kind,a){return kind==="announce"?annText(a):`*ALERT PENUGASAN · ROSTER WASH PMI*\nKode: ${a.code}\nOperasi: ${a.title}${a.emergency?` (${a.emergency})`:""}\nPosisi dibutuhkan: ${a.role} · ${a.slots||1} orang\nLokasi: ${a.location}\nPeriode: ${fmtLong(a.start)} – ${fmtLong(endOf(a))} (${a.dur} hari)\nBatas konfirmasi: ${fmtLong(a.deadline)}\n${a.desc?"\n"+a.desc+"\n":""}\nBila bersedia, masuk ke aplikasi Roster WASH lalu tekan *Ajukan diri* pada alert ini sebelum batas konfirmasi.\n${redirectTo()}\n— Admin Roster WASH PMI`}
 let bcState=null;
+function bcSender(){try{return localStorage.getItem("rosterwash.sender")||""}catch(e){return ""}}
 function gmailLinks(kind,a,rec){
   const emails=[...new Set(rec.map(m=>(m.email||"").trim().toLowerCase()).filter(e=>/^\S+@\S+\.\S+$/.test(e)))];
   const subj=kind==="announce"?`Pengumuman hasil seleksi ${a.code}: ${a.role} — ${a.title}`:`Alert penugasan ${a.code}: ${a.role} di ${a.location}`;
   const body=bcText(kind,a).replace(/\*/g,"");const out=[];
   for(let i=0;i<emails.length;i+=40){const part=emails.slice(i,i+40);
-    out.push({from:i+1,to:i+part.length,href:"https://mail.google.com/mail/?view=cm&fs=1&bcc="+encodeURIComponent(part.join(","))+"&su="+encodeURIComponent(subj)+"&body="+encodeURIComponent(body)})}
+    const au=bcSender();
+    out.push({from:i+1,to:i+part.length,href:"https://mail.google.com/mail/"+(au?"?authuser="+encodeURIComponent(au)+"&":"?")+"view=cm&fs=1&bcc="+encodeURIComponent(part.join(","))+"&su="+encodeURIComponent(subj)+"&body="+encodeURIComponent(body)})}
   return {emails,links:out}}
 function bcRender(){
   const st=bcState,a=Object.assign({id:st.aid},S.alerts[st.aid]||{});
@@ -1350,6 +1352,7 @@ function bcRender(){
    <div class="lbox"><b>${g.emails.length} alamat email</b><span class="muted" style="font-size:.84rem">Dikirim sebagai BCC, jadi alamat anggota tidak saling terlihat.</span></div>
    ${!ch?`<div class="skeleton" style="height:56px"></div>`:auto?`<div class="note" style="background:var(--ok-soft);color:var(--ok)"><b>Pengiriman otomatis aktif.</b> Tekan <b>Kirim sekarang</b>; email langsung terkirim dari server.</div>`
      :`<div class="note" style="display:flex;flex-direction:column;gap:8px"><b style="color:var(--ink)">Kirim lewat Gmail Anda</b><span>Tekan tombol di bawah. Gmail terbuka dengan penerima, judul, dan isi pesan sudah terisi, lalu tekan <b>Kirim</b> di Gmail.${g.links.length>1?` Penerima dibagi per 40 alamat, jadi ada ${g.links.length} email.`:""}</span>
+       <div class="field"><label for="bc-from">Kirim dari akun Gmail (opsional)</label><input class="input" id="bc-from" type="email" placeholder="mis. roster.wash@gmail.com" value="${esc(bcSender())}"><span class="hint">Akun ini harus sudah masuk di browser Anda. Kosongkan untuk memakai akun Gmail yang sedang terbuka.</span></div>
        <div class="row" style="gap:6px">${g.links.map((l,i)=>`<a class="btn ${i===0?"primary":""}" target="_blank" rel="noopener" href="${esc(l.href)}">${I.mail}${g.links.length>1?`Gmail ${i+1} (penerima ${l.from}–${l.to})`:"Buka di Gmail"}</a>`).join("")||`<span class="muted">Tidak ada alamat email.</span>`}</div>
        <span class="muted" style="font-size:.8rem">Ingin terkirim otomatis tanpa membuka Gmail? Isi rahasia <span class="mono">GMAIL_USER</span> dan <span class="mono">GMAIL_APP_PASSWORD</span> di Supabase → Edge Functions → Secrets.</span></div>`}
    <div class="field"><label>Isi pesan</label><div class="msgbox">${esc(bcText(st.kind,a).replace(/\*/g,""))}</div></div>
@@ -1374,7 +1377,8 @@ async function bcSend(){
   const r=await bcCall({kind:st.kind,alert_id:st.aid,audience:st.aud,email:true,wa:false,link:redirectTo()});
   st.busy=false;st.result=r;bcRender();
   try{sb.from("broadcasts").select("*").order("at",{ascending:false}).limit(100).then(x=>{S.broadcasts=(x&&x.data)||[];render()},()=>{})}catch(e){}}
-document.addEventListener("change",e=>{if(e.target.id==="bc-aud"&&bcState){bcState.aud=e.target.value;bcRender()}});
+document.addEventListener("change",e=>{if(e.target.id==="bc-aud"&&bcState){bcState.aud=e.target.value;bcRender()}
+  else if(e.target.id==="bc-from"&&bcState){const v=e.target.value.trim().toLowerCase();try{v?localStorage.setItem("rosterwash.sender",v):localStorage.removeItem("rosterwash.sender")}catch(err){}bcRender()}});
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
   if(a==="bc-open")broadcastModal(b.dataset.k,b.dataset.a);
   else if(a==="bc-send")bcSend();
