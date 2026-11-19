@@ -1114,7 +1114,11 @@ async function sendOtp(email){
   A.email=email;A.busy=true;A.err="";A.info="";authRender();
   const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:redirectTo()}});
   A.busy=false;
-  if(error){A.err=/rate|seconds|too many/i.test(error.message)?"Terlalu sering meminta kode. Tunggu sekitar satu menit lalu coba lagi.":"Kode gagal dikirim: "+error.message;authRender();return}
+  if(error){const msg=error.message||"";
+    A.err=/email rate limit/i.test(msg)?"Server sedang tidak bisa mengirim email karena batas pengiriman per jam sudah tercapai. Coba lagi nanti, atau hubungi admin roster."
+      :/seconds|security purposes/i.test(msg)?"Kode baru saja dikirim ke email ini. Tunggu sekitar satu menit sebelum meminta kode lagi, dan cek juga folder spam."
+      :/rate|too many/i.test(msg)?"Terlalu banyak permintaan. Tunggu beberapa menit lalu coba lagi."
+      :"Kode gagal dikirim: "+msg;authRender();return}
   A.step="code";A.cool=Date.now()+60000;A.info="";authRender();setTimeout(()=>{if(S.view==="signin")authRender()},60500)}
 async function verifyCode(code){
   const A=S.auth;code=String(code||"").replace(/\s/g,"");
