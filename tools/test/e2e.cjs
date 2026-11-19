@@ -185,6 +185,18 @@ const OUT = process.env.SHOTS || "/tmp";
     const first = await p.$eval(".dt tbody tr b", x => x.textContent); if (first !== "Fasil Ahli") throw new Error("candidate table first: " + first);
     await shot("09-relevance");
   });
+  await step("profile origin: Partner National Societies / IFRC / Markas Pusat", async () => {
+    await p.click("#tbar [data-act=new-member]"); await p.fill("#mname", "Sam PNS"); await p.fill("#mphone", "081399990000");
+    await p.selectOption("#mchapk", "pns"); await p.waitForSelector("#mchapl >> text=Nama perhimpunan"); await p.fill("#mchap", "American Red Cross");
+    await p.click("[data-act=save-member]"); await p.waitForTimeout(800);
+    const m = await p.evaluate(() => window.__mockdb.members.find(x => x.name === "Sam PNS"));
+    if (!m || m.chapter !== "Partner National Society – American Red Cross") throw new Error("chapter: " + (m && m.chapter));
+    await p.click(".tab:has-text('Anggota Roster')"); await p.click("tr[data-act=selm]:has-text('Sam PNS')"); await p.click("[data-act=edit-member]");
+    if (await p.inputValue("#mchapk") !== "pns" || await p.inputValue("#mchap") !== "American Red Cross") throw new Error("not parsed back");
+    await p.selectOption("#mchapk", "pusat"); await p.fill("#mchap", ""); await p.click("[data-act=save-member]"); await p.waitForTimeout(800);
+    const m2 = await p.evaluate(() => window.__mockdb.members.find(x => x.name === "Sam PNS"));
+    if (m2.chapter !== "Markas Pusat PMI") throw new Error("chapter2: " + m2.chapter);
+  });
   await p.setViewportSize({ width: 390, height: 844 }); await logout(); await shot("08-phone-login");
   console.log(errs.length ? "\nERRORS:\n" + errs.join("\n") : "\nno errors");
   await b.close();

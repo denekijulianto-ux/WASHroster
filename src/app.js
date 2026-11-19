@@ -15,6 +15,15 @@ const KINDS={bencana:"Bencana",non_bencana:"Non bencana"};
 const NONB=["Pelatihan","Workshop","Simulasi","Asesmen/Survei","Fasilitasi kegiatan","Lainnya"];
 const kindOf=a=>a&&a.kind==="non_bencana"?"non_bencana":"bencana";
 const subLabel=a=>kindOf(a)==="non_bencana"?"Jenis kegiatan":"Jenis bencana";
+const ORIGINS=[["kab","Markas PMI Kabupaten/Kota","mis. PMI Kab. Sikka"],["prov","Markas PMI Provinsi","mis. PMI Provinsi NTT"],["pusat","Markas Pusat PMI","Divisi/unit (opsional)"],["ifrc","IFRC","Kantor/delegasi (opsional), mis. IFRC Jakarta"],["pns","Partner National Societies","Nama perhimpunan, mis. American Red Cross"]];
+const ORIG_FIXED={pusat:"Markas Pusat PMI",ifrc:"IFRC",pns:"Partner National Society"};
+function parseChapter(c){c=String(c||"").trim();const rest=x=>c.slice(x.length).replace(/^\s*[–—:-]\s*/,"").trim();
+  if(/^markas pusat( pmi)?/i.test(c))return {k:"pusat",d:rest(c.match(/^markas pusat( pmi)?/i)[0])};
+  if(/^(ifrc|ifrc\b)/i.test(c))return {k:"ifrc",d:rest("IFRC")};
+  if(/^(partner national societ(y|ies)|pns\b)/i.test(c))return {k:"pns",d:rest(c.match(/^(partner national societ(y|ies)|pns)/i)[0])};
+  if(/provinsi/i.test(c))return {k:"prov",d:c};
+  return {k:"kab",d:c}}
+function joinChapter(k,d){d=String(d||"").trim();const f=ORIG_FIXED[k];return f?(d?f+" – "+d:f):d}
 const EMERG=["Banjir","Gempa Bumi","Tsunami","Erupsi Gunung Api","Tanah Longsor","Kekeringan","Kebakaran","Wabah Penyakit","Pengungsian"];
 const PROV=["Aceh","Sumatera Utara","Sumatera Barat","Riau","Kepulauan Riau","Jambi","Bengkulu","Sumatera Selatan","Kepulauan Bangka Belitung","Lampung","Banten","DKI Jakarta","Jawa Barat","Jawa Tengah","DI Yogyakarta","Jawa Timur","Bali","Nusa Tenggara Barat","Nusa Tenggara Timur","Kalimantan Barat","Kalimantan Tengah","Kalimantan Selatan","Kalimantan Timur","Kalimantan Utara","Sulawesi Utara","Gorontalo","Sulawesi Tengah","Sulawesi Barat","Sulawesi Selatan","Sulawesi Tenggara","Maluku","Maluku Utara","Papua","Papua Barat","Papua Barat Daya","Papua Tengah","Papua Pegunungan","Papua Selatan"];
 const MSTAT={tersedia:["Tersedia","ok"],ditugaskan:["Bertugas","red"],tidak:["Tidak tersedia","off"]};
@@ -322,7 +331,7 @@ function memberInspector(){
   return `<div class="isec"><div class="row" style="align-items:flex-start;gap:14px;flex-wrap:nowrap">${av(m,"lg")}<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="row" style="gap:6px">${pill(MSTAT,m.status)}${pill(SRC,srcOf(m))}${sampleTag(m)}</div><h2>${esc(m.name)}</h2><p class="muted" style="font-size:.86rem">${esc(m.role)}<br>${esc(m.level||"")}</p></div></div>
    <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-member" data-m="${id}">${I.edit}Ubah</button><button class="btn sm ghost danger" data-act="del-member" data-m="${id}">Hapus</button></div>${m.account?`<div class="row" style="gap:6px;align-items:center"><span class="muted" style="font-size:.8rem">${m.hasPassword?"Sudah memakai password.":"Belum membuat password."}</span>${m.hasPassword?`<button class="btn sm" data-act="reset-login" data-m="${id}">Reset akses login</button>`:""}</div>`:""}</div>
    <div class="isec"><span class="lbl-up">Kontak</span>${m.phone?`<div class="copyline"><span style="width:16px;color:#128C4A;display:inline-flex">${I.wa}</span><code>+${waNum(m.phone)}</code><button class="btn sm ghost" data-act="copytxt" data-t="+${waNum(m.phone)}">${I.copy}</button></div>`:""}${m.email?`<div class="copyline"><span style="width:16px;display:inline-flex">${I.mail}</span><code>${esc(m.email)}</code><button class="btn sm ghost" data-act="copytxt" data-t="${esc(m.email)}">${I.copy}</button></div>`:""}${!m.phone&&!m.email?`<p class="muted">Belum ada kontak.</p>`:""}</div>
-   <div class="isec"><span class="lbl-up">Profil</span><dl class="kv"><dt>No. MIS (SIAMO)</dt><dd class="mono">${esc(m.mis||"-")}</dd><dt>Provinsi</dt><dd>${esc(m.province||"-")}</dd><dt>Markas PMI</dt><dd>${esc(m.chapter||"-")}</dd><dt>Keahlian</dt><dd>${esc(m.skills||"-")}</dd><dt>Bahasa</dt><dd>${esc(m.lang||"-")}</dd><dt>Terdaftar</dt><dd>${m.createdAt?stampT(m.createdAt):"-"}</dd></dl></div>
+   <div class="isec"><span class="lbl-up">Profil</span><dl class="kv"><dt>No. MIS (SIAMO)</dt><dd class="mono">${esc(m.mis||"-")}</dd><dt>Provinsi</dt><dd>${esc(m.province||"-")}</dd><dt>Asal Markas PMI</dt><dd>${esc(m.chapter||"-")}</dd><dt>Keahlian</dt><dd>${esc(m.skills||"-")}</dd><dt>Bahasa</dt><dd>${esc(m.lang||"-")}</dd><dt>Terdaftar</dt><dd>${m.createdAt?stampT(m.createdAt):"-"}</dd></dl></div>
    <div class="isec"><span class="lbl-up">Riwayat alert (${hist.length})</span>${hist.length?`<div class="dlist">${hist.map(({a,c})=>`<div class="ditem"><div><div class="t">${esc(a.title)}</div><div class="s mono">${esc(a.code)} · ${fmt(a.start)} · ${a.dur} hari</div></div>${pill(CSTAT,c.state)}${c.state==="terpilih"?`<button class="btn sm" data-act="card" data-a="${a.id}" data-m="${id}">Kartu</button>`:""}</div>`).join("")}</div>`:`<p class="muted">Belum pernah diundang.</p>`}</div>`}
 function regSummary(){
   const acc=members().filter(m=>m.account),wk=acc.filter(m=>(m.createdAt||0)>Date.now()-7*864e5).length;
@@ -600,7 +609,8 @@ function memberFields(m,self){
     <div class="field"><label for="mphone">Nomor WhatsApp</label><input class="input" id="mphone" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxx" value="${esc(m.phone||"")}"></div>
     <div class="field"><label for="memail">Email aktif</label><input class="input" id="memail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(self&&lockMail()?lockMail():m.email||"")}" ${self&&lockMail()?"readonly":""}>${self&&lockMail()?`<span class="hint">Email yang sudah diverifikasi dengan kode. Alert dikirim ke email ini.</span>`:""}</div>
     <div class="field"><label for="mprov">Provinsi asal</label><input class="input" id="mprov" list="provlist" value="${esc(m.province||"")}"><datalist id="provlist">${PROV.map(p=>`<option value="${p}">`).join("")}</datalist></div>
-    <div class="field"><label for="mchap">Markas PMI</label><input class="input" id="mchap" placeholder="PMI Kota/Kabupaten…" value="${esc(m.chapter||"")}"></div>
+    ${(()=>{const pc=parseChapter(m.chapter),o=ORIGINS.find(x=>x[0]===pc.k);return `<div class="field"><label for="mchapk">Asal Markas PMI</label><select class="input" id="mchapk">${ORIGINS.map(([k,l])=>`<option value="${k}" ${pc.k===k?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div class="field"><label for="mchap" id="mchapl">${pc.k==="pns"?"Nama perhimpunan":ORIG_FIXED[pc.k]?"Keterangan (opsional)":"Nama markas"}</label><input class="input" id="mchap" placeholder="${esc(o[2])}" value="${esc(pc.d)}"></div>`})()}
     <div class="field full"><label for="mskills">Keahlian &amp; sertifikasi</label><input class="input" id="mskills" placeholder="mis. PHAST, operator WTU, uji kualitas air" value="${esc(m.skills||"")}"></div>
     <div class="field"><label for="mstat">Status ketersediaan</label><select class="input" id="mstat">${stats.map(([k,v])=>`<option value="${k}" ${m.status===k?"selected":""}>${v[0]}</option>`).join("")}</select></div>
     <div class="field"><label for="mlang">Bahasa</label><input class="input" id="mlang" placeholder="Indonesia, Inggris…" value="${esc(m.lang||"")}"></div>
@@ -615,7 +625,7 @@ function resizePhoto(file){return new Promise((res,rej)=>{const r=new FileReader
 const lockMail=()=>(S.meProfile&&S.meProfile.email||"").toLowerCase();
 async function saveMember(id,self){
   const v=k=>($("#"+k).value||"").trim();
-  const m={name:v("mname"),role:v("mrole"),level:v("mlevel"),phone:v("mphone"),email:v("memail").toLowerCase(),province:v("mprov"),chapter:v("mchap"),skills:v("mskills"),status:v("mstat"),lang:v("mlang"),mis:($("#mmis")?v("mmis"):undefined),photo:S.pendingPhoto||""};
+  const m={name:v("mname"),role:v("mrole"),level:v("mlevel"),phone:v("mphone"),email:v("memail").toLowerCase(),province:v("mprov"),chapter:($("#mchapk")?joinChapter(v("mchapk"),v("mchap")):v("mchap")),skills:v("mskills"),status:v("mstat"),lang:v("mlang"),mis:($("#mmis")?v("mmis"):undefined),photo:S.pendingPhoto||""};
   const err=$("#merr"),fail=t=>{err.textContent=t;err.hidden=false};
   if(!m.name)return fail("Isi nama lengkap.");
   if(self&&lockMail())m.email=lockMail();
@@ -999,6 +1009,7 @@ document.addEventListener("change",e=>{
   if(t.id==="fprov"){S.f.prov=t.value;render()}
   else if(t.id==="fstat"){S.f.status=t.value;render()}
   else if(t.id==="invrole"){S.inv.roleOnly=t.checked;render()}
+  else if(t.id==="mchapk"){const o=ORIGINS.find(x=>x[0]===t.value);$("#mchap").placeholder=o[2];$("#mchapl").textContent=t.value==="pns"?"Nama perhimpunan":ORIG_FIXED[t.value]?"Keterangan (opsional)":"Nama markas"}
   else if(t.id==="akind"){const subs=t.value==="non_bencana"?NONB:EMERG;$("#aemerg").innerHTML=subs.map(r=>`<option>${esc(r)}</option>`).join("");$("#aemergl").textContent=t.value==="non_bencana"?"Jenis kegiatan":"Jenis bencana"}
   else if(t.id==="invavail"){S.inv.availOnly=t.checked;render()}
   else if(t.id==="mfile"){const f=t.files[0];if(!f)return;resizePhoto(f).then(d=>{S.pendingPhoto=d;$("#mphoto").innerHTML=`<img class="av lg" src="${d}" alt="">`}).catch(()=>toast("Foto tidak bisa dibaca. Coba file JPG atau PNG."))}
