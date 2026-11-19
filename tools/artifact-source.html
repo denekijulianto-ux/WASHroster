@@ -348,6 +348,18 @@ textarea.input{min-height:90px;resize:vertical}
 .steps b{color:var(--band-ink);display:block}
 .consent{display:flex;gap:10px;align-items:flex-start;font-size:.86rem}
 .authcard{width:100%;max-width:440px;margin:28px auto 0;padding:26px 24px;gap:16px}
+.wpb-wrap{width:100%;max-width:440px;margin:16px auto 28px}
+.wpb{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:18px;text-decoration:none;color:#fff;background:linear-gradient(120deg,#17478C 0%,#2F78D4 62%,#4C93E6 100%);box-shadow:0 8px 22px -12px rgba(23,71,140,.75);position:relative;overflow:hidden;transition:transform .15s ease,box-shadow .15s ease}
+.wpb::after{content:"";position:absolute;right:-38px;top:-46px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.09);pointer-events:none}
+.wpb:hover{transform:translateY(-2px);box-shadow:0 12px 26px -12px rgba(23,71,140,.85)}
+.wpb:focus-visible{outline:3px solid #A9C9F2;outline-offset:3px}
+.wpb-ic{flex:none;display:grid;place-items:center;width:50px;height:50px;border-radius:14px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28)}
+.wpb-t{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.25}
+.wpb-k{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;opacity:.8;font-weight:600}
+.wpb-t b{font-size:1.25rem;letter-spacing:.02em}
+.wpb-s{font-size:.84rem;opacity:.9}
+.wpb-go{flex:none;display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:999px;background:#fff;color:#17478C;font-weight:700;font-size:.86rem;position:relative;z-index:1}
+@media (max-width:420px){.wpb{padding:14px}.wpb-ic{width:44px;height:44px}.wpb-go{padding:8px 11px}.wpb-s{font-size:.8rem}}
 .regcard{max-width:520px}
 .auth-h{font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:1.6rem;margin-top:4px}
 .form.one{grid-template-columns:minmax(0,1fr)}
@@ -677,11 +689,12 @@ function vAdminHome(){
   const acc=ms.filter(m=>m.account),wk=acc.filter(m=>(m.createdAt||0)>Date.now()-7*864e5).length;
   return `<div class="chead"><div><p class="eyebrow">Mode admin</p><h1>Beranda</h1><p>Pendaftaran, alert, seleksi kandidat, dan penugasan berlangsung dalam satu halaman.</p></div><div class="row"><button class="btn" data-act="new-member">${I.plus}Tambah anggota</button><button class="btn primary" data-act="new-alert">${I.bell}Buat alert</button></div></div>
   <div class="stiles five"><div class="stile"><b>${ms.length}</b><span>Anggota roster</span></div><div class="stile"><b>${ms.filter(m=>m.status==="tersedia").length}</b><span>Siap diberangkatkan</span></div><div class="stile"><b>${live.length}</b><span>Penugasan berlangsung</span></div><div class="stile alert"><b>${open.length}</b><span>Alert terbuka</span></div><div class="stile"><b>${reps.length}</b><span>Laporan masuk</span></div></div>
+  ${typeof washpediaHTML==="function"?washpediaHTML():""}
   <div class="grid2">
     <section class="card" id="sec-daftar"><div class="card-h"><h2>Pendaftaran &amp; login</h2><div class="row" style="gap:6px"><button class="btn sm primary" data-act="sheet">${I.sheet}Sumber data</button><button class="btn sm" data-act="admins">${I.users}Kelola admin</button></div></div><div class="card-b">${syncStatusHTML()}
       <div class="row" style="gap:28px"><div><b class="mono" style="font-size:1.45rem">${acc.length}</b><div class="muted" style="font-size:.8rem">daftar dengan email aktif</div></div><div><b class="mono" style="font-size:1.45rem">${wk}</b><div class="muted" style="font-size:.8rem">7 hari terakhir</div></div><div><b class="mono" style="font-size:1.45rem">${ms.filter(m=>m.source==="form"||m.source==="sheet").length}</b><div class="muted" style="font-size:.8rem">dari Google Form</div></div></div>
       ${acc.length?`<div class="dlist">${acc.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,5).map(m=>`<div class="ditem" data-act="selm" data-m="${m.id}" style="cursor:pointer">${av(m,"sm")}<div><div class="t">${esc(m.name)}</div><div class="s">${esc(m.email||"")} · ${m.createdAt?stampT(m.createdAt):""}</div></div>${pill(MSTAT,m.status)}</div>`).join("")}</div>`:`<p class="muted">Belum ada yang mendaftar. Bagikan tautan halaman ini; anggota masuk dengan akun yang memakai email aktif, lalu mengisi formulir pendaftaran.</p>`}
-      ${dupNotice()}${typeof washpediaHTML==="function"?washpediaHTML(true):""}</div></section>
+      ${dupNotice()}</div></section>
     <section class="card"><div class="card-h"><h2>Alert terbuka</h2><a class="btn sm" href="#alert">Semua alert</a></div><div class="card-b">${open.length?`<div class="alerts">${open.slice(0,4).map(a=>alertCard(a)).join("")}</div>`:`<p class="muted">Tidak ada alert terbuka.</p><div><button class="btn primary sm" data-act="new-alert">${I.plus}Buat alert</button></div>`}</div></section>
   </div>
   <div class="grid2">
@@ -712,8 +725,8 @@ function vMemberHome(){
     <p class="lead" style="margin:0;font-size:.86rem">No. MIS (SIAMO): <b class="mono">${esc(m.mis||"belum diisi")}</b>${m.mis?"":` · <a href="#" data-act="edit-self" style="color:inherit">lengkapi</a>`}</p>
     <p class="lead" style="margin:0;font-size:.86rem">${I.mail.replace("<svg",'<svg width="14" height="14" style="vertical-align:-2px"')} ${esc(m.email||"-")}${m.phone?" · WA +"+waNum(m.phone):""}</p>
     <div class="row" style="gap:8px">${pill(MSTAT,m.status)}<button class="btn sm" data-act="edit-self">${I.edit}Ubah profil</button>${m.status==="tersedia"?`<button class="btn sm" data-act="avail" data-v="tidak">Tandai tidak tersedia</button>`:m.status==="tidak"?`<button class="btn sm" data-act="avail" data-v="tersedia">Tandai tersedia</button>`:""}</div></div></div></section>
-  ${typeof waGroupJoinHTML==="function"?waGroupJoinHTML():""}
   ${typeof washpediaHTML==="function"?washpediaHTML():""}
+  ${typeof waGroupJoinHTML==="function"?waGroupJoinHTML():""}
   ${anns.length?`<section class="card" id="m-ann"><div class="card-h"><h2>Pengumuman anggota terpilih</h2>${anns.filter(a=>a.announce.at>(S.annSeen||0)).length?`<span class="pill teal">${anns.filter(a=>a.announce.at>(S.annSeen||0)).length} baru</span>`:""}</div><div class="card-b">${anns.slice(0,6).map(a=>annCard(a,{member:true})).join("")}</div></section>`:""}
   <div class="grid2">
     <section class="card" id="m-alert"><div class="card-h"><h2>Alert tersedia</h2><span class="pill teal">${inv.length+open.length}</span></div><div class="card-b">

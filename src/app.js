@@ -230,11 +230,12 @@ function vAdminHome(){
   const acc=ms.filter(m=>m.account),wk=acc.filter(m=>(m.createdAt||0)>Date.now()-7*864e5).length;
   return `<div class="chead"><div><p class="eyebrow">Mode admin</p><h1>Beranda</h1><p>Pendaftaran, alert, seleksi kandidat, dan penugasan berlangsung dalam satu halaman.</p></div><div class="row"><button class="btn" data-act="new-member">${I.plus}Tambah anggota</button><button class="btn primary" data-act="new-alert">${I.bell}Buat alert</button></div></div>
   <div class="stiles five"><div class="stile"><b>${ms.length}</b><span>Anggota roster</span></div><div class="stile"><b>${ms.filter(m=>m.status==="tersedia").length}</b><span>Siap diberangkatkan</span></div><div class="stile"><b>${live.length}</b><span>Penugasan berlangsung</span></div><div class="stile alert"><b>${open.length}</b><span>Alert terbuka</span></div><div class="stile"><b>${reps.length}</b><span>Laporan masuk</span></div></div>
+  ${typeof washpediaHTML==="function"?washpediaHTML():""}
   <div class="grid2">
     <section class="card" id="sec-daftar"><div class="card-h"><h2>Pendaftaran &amp; login</h2><div class="row" style="gap:6px"><button class="btn sm primary" data-act="sheet">${I.sheet}Sumber data</button><button class="btn sm" data-act="admins">${I.users}Kelola admin</button></div></div><div class="card-b">${syncStatusHTML()}
       <div class="row" style="gap:28px"><div><b class="mono" style="font-size:1.45rem">${acc.length}</b><div class="muted" style="font-size:.8rem">daftar dengan email aktif</div></div><div><b class="mono" style="font-size:1.45rem">${wk}</b><div class="muted" style="font-size:.8rem">7 hari terakhir</div></div><div><b class="mono" style="font-size:1.45rem">${ms.filter(m=>m.source==="form"||m.source==="sheet").length}</b><div class="muted" style="font-size:.8rem">dari Google Form</div></div></div>
       ${acc.length?`<div class="dlist">${acc.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,5).map(m=>`<div class="ditem" data-act="selm" data-m="${m.id}" style="cursor:pointer">${av(m,"sm")}<div><div class="t">${esc(m.name)}</div><div class="s">${esc(m.email||"")} · ${m.createdAt?stampT(m.createdAt):""}</div></div>${pill(MSTAT,m.status)}</div>`).join("")}</div>`:`<p class="muted">Belum ada yang mendaftar. Bagikan link aplikasi ini; anggota memasukkan email aktif, menerima kode verifikasi, lalu mengisi formulir pendaftaran.</p><div><button class="btn sm" data-act="copytxt" data-t="${esc(location.origin+location.pathname)}">${I.copy}Salin link pendaftaran</button></div>`}
-      ${dupNotice()}${typeof washpediaHTML==="function"?washpediaHTML(true):""}</div></section>
+      ${dupNotice()}</div></section>
     <section class="card"><div class="card-h"><h2>Alert terbuka</h2><a class="btn sm" href="#alert">Semua alert</a></div><div class="card-b">${open.length?`<div class="alerts">${open.slice(0,4).map(a=>alertCard(a)).join("")}</div>`:`<p class="muted">Tidak ada alert terbuka.</p><div><button class="btn primary sm" data-act="new-alert">${I.plus}Buat alert</button></div>`}</div></section>
   </div>
   <div class="grid2">
@@ -265,8 +266,8 @@ function vMemberHome(){
     <p class="lead" style="margin:0;font-size:.86rem">No. MIS (SIAMO): <b class="mono">${esc(m.mis||"belum diisi")}</b>${m.mis?"":` · <a href="#" data-act="edit-self" style="color:inherit">lengkapi</a>`}</p>
     <p class="lead" style="margin:0;font-size:.86rem">${I.mail.replace("<svg",'<svg width="14" height="14" style="vertical-align:-2px"')} ${esc(m.email||"-")}${m.phone?" · WA +"+waNum(m.phone):""}</p>
     <div class="row" style="gap:8px">${pill(MSTAT,m.status)}<button class="btn sm" data-act="edit-self">${I.edit}Ubah profil</button>${m.status==="tersedia"?`<button class="btn sm" data-act="avail" data-v="tidak">Tandai tidak tersedia</button>`:m.status==="tidak"?`<button class="btn sm" data-act="avail" data-v="tersedia">Tandai tersedia</button>`:""}</div></div></div></section>
-  ${typeof waGroupJoinHTML==="function"?waGroupJoinHTML():""}
   ${typeof washpediaHTML==="function"?washpediaHTML():""}
+  ${typeof waGroupJoinHTML==="function"?waGroupJoinHTML():""}
   ${anns.length?`<section class="card" id="m-ann"><div class="card-h"><h2>Pengumuman anggota terpilih</h2>${anns.filter(a=>a.announce.at>(S.annSeen||0)).length?`<span class="pill teal">${anns.filter(a=>a.announce.at>(S.annSeen||0)).length} baru</span>`:""}</div><div class="card-b">${anns.slice(0,6).map(a=>annCard(a,{member:true})).join("")}</div></section>`:""}
   <div class="grid2">
     <section class="card" id="m-alert"><div class="card-h"><h2>Alert tersedia</h2><span class="pill teal">${inv.length+open.length}</span></div><div class="card-b">
@@ -1142,7 +1143,8 @@ async function uploadPhoto(dataUrl){
 
 /* ---------- auth screens ---------- */
 S.auth=S.auth||{mode:"member",step:"email",email:"",wa:"",err:"",info:"",busy:false,cool:0};
-function vSignin(){
+function vSignin(){return vSigninCore()+`<div class="wpb-wrap">${washpediaHTML()}</div>`}
+function vSigninCore(){
   const A=S.auth;
   const err=A.err?`<p class="err">${esc(A.err)}</p>`:"",info=A.info?`<p class="note">${esc(A.info)}</p>`:"";
   const steps=n=>`<div class="auth-steps"><span class="${n===1?"on":""}">1 · Email</span><span class="${n===2?"on":""}">2 · Kode dari email</span></div>`;
@@ -1170,8 +1172,7 @@ function vSignin(){
        ${err}${info}
        <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
      <div class="note" style="display:flex;flex-direction:column;gap:8px"><span><b style="color:var(--ink)">Pertama kali masuk?</b> Sudah mengisi formulir pendaftaran tapi belum punya password.</span><button class="btn" data-act="auth-mode" data-v="activate">Aktifkan akun</button></div>
-     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><a class="btn sm ghost" href="${esc(formUrl())}" target="_blank" rel="noopener">Belum terdaftar? Isi formulir</a><button class="btn sm ghost" data-act="pw-help">Lupa password?</button></div>
-     ${washpediaHTML(true)}</section>`}
+     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><a class="btn sm ghost" href="${esc(formUrl())}" target="_blank" rel="noopener">Belum terdaftar? Isi formulir</a><button class="btn sm ghost" data-act="pw-help">Lupa password?</button></div></section>`}
 async function passwordLogin(email,pw){
   const A=S.auth;email=String(email||"").trim().toLowerCase();A.email=email;
   if(!/^\S+@\S+\.\S+$/.test(email)||!pw){A.err="Isi email dan password.";authRender();return}
@@ -1549,9 +1550,11 @@ document.addEventListener("input",e=>{if(e.target.id==="bc-q"&&bcState){bcState.
 
 /* ---------- WASHPEDIA: pusat informasi WASH PMI ---------- */
 const WASHPEDIA_URL="https://bit.ly/WASHPEDIA2026";
-function washpediaHTML(compact){
-  const icon=I.info.replace("<svg",'<svg width="18" height="18" style="vertical-align:-4px"');
-  if(compact)return `<a class="lbox" href="${WASHPEDIA_URL}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><b>${icon} WASHPEDIA</b><span class="muted" style="font-size:.84rem">Pusat informasi tentang WASH PMI. Buka →</span></a>`;
-  return `<section class="card" id="washpedia"><div class="card-b row" style="justify-content:space-between;gap:10px"><div><b>${icon} WASHPEDIA</b><div class="muted" style="font-size:.84rem">Pusat informasi tentang WASH PMI.</div></div><a class="btn primary" href="${WASHPEDIA_URL}" target="_blank" rel="noopener">Buka WASHPEDIA</a></div></section>`}
+const WP_ICON='<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5.5C4.5 4 7.5 4 12 6c4.5-2 7.5-2 10-.5v13c-2.5-1.5-5.5-1.5-10 .5-4.5-2-7.5-2-10-.5z"/><path d="M12 6v13.5"/><path d="M8.5 9.5c-1-.3-2-.4-3 0M8.5 12.5c-1-.3-2-.4-3 0"/></svg>';
+function washpediaHTML(){
+  return `<a class="wpb" id="washpedia" href="${WASHPEDIA_URL}" target="_blank" rel="noopener" aria-label="Buka WASHPEDIA, pusat informasi WASH PMI (tab baru)">
+    <span class="wpb-ic">${WP_ICON}</span>
+    <span class="wpb-t"><span class="wpb-k">Pusat informasi</span><b>WASHPEDIA</b><span class="wpb-s">Semua tentang WASH PMI dalam satu tempat</span></span>
+    <span class="wpb-go">Buka<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>`}
 
 boot();

@@ -92,7 +92,8 @@ async function uploadPhoto(dataUrl){
 
 /* ---------- auth screens ---------- */
 S.auth=S.auth||{mode:"member",step:"email",email:"",wa:"",err:"",info:"",busy:false,cool:0};
-function vSignin(){
+function vSignin(){return vSigninCore()+`<div class="wpb-wrap">${washpediaHTML()}</div>`}
+function vSigninCore(){
   const A=S.auth;
   const err=A.err?`<p class="err">${esc(A.err)}</p>`:"",info=A.info?`<p class="note">${esc(A.info)}</p>`:"";
   const steps=n=>`<div class="auth-steps"><span class="${n===1?"on":""}">1 · Email</span><span class="${n===2?"on":""}">2 · Kode dari email</span></div>`;
@@ -120,8 +121,7 @@ function vSignin(){
        ${err}${info}
        <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
      <div class="note" style="display:flex;flex-direction:column;gap:8px"><span><b style="color:var(--ink)">Pertama kali masuk?</b> Sudah mengisi formulir pendaftaran tapi belum punya password.</span><button class="btn" data-act="auth-mode" data-v="activate">Aktifkan akun</button></div>
-     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><a class="btn sm ghost" href="${esc(formUrl())}" target="_blank" rel="noopener">Belum terdaftar? Isi formulir</a><button class="btn sm ghost" data-act="pw-help">Lupa password?</button></div>
-     ${washpediaHTML(true)}</section>`}
+     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><a class="btn sm ghost" href="${esc(formUrl())}" target="_blank" rel="noopener">Belum terdaftar? Isi formulir</a><button class="btn sm ghost" data-act="pw-help">Lupa password?</button></div></section>`}
 async function passwordLogin(email,pw){
   const A=S.auth;email=String(email||"").trim().toLowerCase();A.email=email;
   if(!/^\S+@\S+\.\S+$/.test(email)||!pw){A.err="Isi email dan password.";authRender();return}
@@ -499,7 +499,9 @@ document.addEventListener("input",e=>{if(e.target.id==="bc-q"&&bcState){bcState.
 
 /* ---------- WASHPEDIA: pusat informasi WASH PMI ---------- */
 const WASHPEDIA_URL="https://bit.ly/WASHPEDIA2026";
-function washpediaHTML(compact){
-  const icon=I.info.replace("<svg",'<svg width="18" height="18" style="vertical-align:-4px"');
-  if(compact)return `<a class="lbox" href="${WASHPEDIA_URL}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><b>${icon} WASHPEDIA</b><span class="muted" style="font-size:.84rem">Pusat informasi tentang WASH PMI. Buka →</span></a>`;
-  return `<section class="card" id="washpedia"><div class="card-b row" style="justify-content:space-between;gap:10px"><div><b>${icon} WASHPEDIA</b><div class="muted" style="font-size:.84rem">Pusat informasi tentang WASH PMI.</div></div><a class="btn primary" href="${WASHPEDIA_URL}" target="_blank" rel="noopener">Buka WASHPEDIA</a></div></section>`}
+const WP_ICON='<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5.5C4.5 4 7.5 4 12 6c4.5-2 7.5-2 10-.5v13c-2.5-1.5-5.5-1.5-10 .5-4.5-2-7.5-2-10-.5z"/><path d="M12 6v13.5"/><path d="M8.5 9.5c-1-.3-2-.4-3 0M8.5 12.5c-1-.3-2-.4-3 0"/></svg>';
+function washpediaHTML(){
+  return `<a class="wpb" id="washpedia" href="${WASHPEDIA_URL}" target="_blank" rel="noopener" aria-label="Buka WASHPEDIA, pusat informasi WASH PMI (tab baru)">
+    <span class="wpb-ic">${WP_ICON}</span>
+    <span class="wpb-t"><span class="wpb-k">Pusat informasi</span><b>WASHPEDIA</b><span class="wpb-s">Semua tentang WASH PMI dalam satu tempat</span></span>
+    <span class="wpb-go">Buka<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>`}
