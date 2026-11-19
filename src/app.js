@@ -10,7 +10,7 @@ const DEFAULT_SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
 const SB_URL = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SB_URL, SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SB_KEY;
 const sb = SB_URL && SB_KEY ? createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
 const ROLES=["Koordinator WASH","Suplai Air Bersih","Sanitasi & Limbah","Promosi Kebersihan","Kualitas Air","Pengendalian Vektor","Operator Unit Pengolahan Air"];
-const LEVELS=["Relawan (KSR/TSR)","Staf PMI","Team Leader"];
+const LEVELS=["Relawan (KSR/TSR)","Staf PMI","Pengurus PMI","Team Leader"];
 const KINDS={bencana:"Bencana",non_bencana:"Non bencana"};
 const NONB=["Pelatihan","Workshop","Simulasi","Asesmen/Survei","Fasilitasi kegiatan","Lainnya"];
 const kindOf=a=>a&&a.kind==="non_bencana"?"non_bencana":"bencana";
@@ -359,7 +359,7 @@ function memberInspector(){
    <div class="isec"><span class="lbl-up">Ringkasan profil</span>${memberSummary(m)}</div>
    ${(()=>{const ms=matchesFor(m);return ms.length?`<div class="isec"><span class="lbl-up">Kecocokan dengan penugasan tersedia (${ms.length})</span>${ms.map(x=>recRow(m,x.a,x.r,true)).join("")}</div>`:`<div class="isec"><span class="lbl-up">Kecocokan dengan penugasan</span><p class="muted" style="font-size:.86rem">Belum ada alert terbuka. Kecocokan muncul otomatis saat ada alert baru.</p></div>`})()}
    <div class="isec"><span class="lbl-up">Kontak</span>${m.phone?`<div class="copyline"><span style="width:16px;color:#128C4A;display:inline-flex">${I.wa}</span><code>+${waNum(m.phone)}</code><button class="btn sm ghost" data-act="copytxt" data-t="+${waNum(m.phone)}">${I.copy}</button></div>`:""}${m.email?`<div class="copyline"><span style="width:16px;display:inline-flex">${I.mail}</span><code>${esc(m.email)}</code><button class="btn sm ghost" data-act="copytxt" data-t="${esc(m.email)}">${I.copy}</button></div>`:""}${!m.phone&&!m.email?`<p class="muted">Belum ada kontak.</p>`:""}</div>
-   <div class="isec"><span class="lbl-up">Profil</span><dl class="kv"><dt>No. MIS (SIAMO)</dt><dd class="mono">${esc(m.mis||"-")}</dd><dt>Provinsi</dt><dd>${esc(m.province||"-")}</dd><dt>Asal Markas PMI</dt><dd>${esc(m.chapter||"-")}</dd><dt>Keahlian</dt><dd>${esc(m.skills||"-")}</dd><dt>Bahasa</dt><dd>${esc(m.lang||"-")}</dd><dt>Terdaftar</dt><dd>${m.createdAt?stampT(m.createdAt):"-"}</dd></dl></div>
+   <div class="isec"><span class="lbl-up">Profil</span><dl class="kv"><dt>No. MIS (SIAMO)</dt><dd class="mono">${esc(m.mis||"-")}</dd><dt>Provinsi</dt><dd>${esc(m.province||"-")}</dd><dt>Asal Markas PMI</dt><dd>${esc(m.chapter||"-")}</dd><dt>Keahlian</dt><dd class="pre">${esc(m.skills||"-")}</dd><dt>Bahasa</dt><dd>${esc(m.lang||"-")}</dd><dt>Terdaftar</dt><dd>${m.createdAt?stampT(m.createdAt):"-"}</dd></dl></div>
    ${(()=>{const h=assignmentsOf(id);return `<div class="isec"><span class="lbl-up">Riwayat penugasan (${h.length}×${h.length?", "+h.reduce((t,x)=>t+(+x.a.dur||0),0)+" hari":""})</span>${h.length?historyList(m,h):`<p class="muted" style="font-size:.86rem">Belum pernah ditugaskan.</p>`}</div>`})()}
    <div class="isec"><span class="lbl-up">Riwayat alert (${hist.length})</span>${hist.length?`<div class="dlist">${hist.map(({a,c})=>`<div class="ditem"><div><div class="t">${esc(a.title)}</div><div class="s mono">${esc(a.code)} · ${fmt(a.start)} · ${a.dur} hari</div></div>${pill(CSTAT,c.state)}${c.state==="terpilih"?`<button class="btn sm" data-act="card" data-a="${a.id}" data-m="${id}">Kartu</button>`:""}</div>`).join("")}</div>`:`<p class="muted">Belum pernah diundang.</p>`}</div>`}
 function regSummary(){
@@ -426,7 +426,7 @@ function relevance(m,a){
   if(m.status==="tersedia"){sc+=15;why.push("Tersedia")}
   else if(m.status==="ditugaskan"&&!(mine&&mine.state==="terpilih")){sc-=40;why.push("Sedang bertugas")}
   else if(m.status==="tidak"){sc-=25;why.push("Tidak tersedia")}
-  const txt=((m.skills||"")+" "+(m.lang||"")+" "+(m.chapter||"")).toLowerCase();
+  const X=m.extra||{},txt=[m.skills,m.lang,m.chapter,X.activity,X.contribution,X.confident,X.study,X.wants].filter(Boolean).join(" ").toLowerCase();
   if(kind==="non_bencana"&&NB_KW[a.role]){const ph=NB_KW[a.role].filter(k=>kwHit(txt,k));if(ph.length){sc+=Math.min(30,ph.length*10);why.push("Cocok "+a.role.toLowerCase()+": "+ph.slice(0,3).join(", "))}}
   if(kind==="non_bencana"&&a.role==="Peserta"){const sub=(a.emergency||"").toLowerCase(),done=a.title&&txt.includes((a.title||"").toLowerCase().replace(/^(pelatihan|workshop)\s+/,"").split(" ")[0]);if(m.level==="Relawan (KSR/TSR)"){sc+=10;why.push("Relawan (sasaran peserta)")}if(done){sc-=10;why.push("Mungkin sudah pernah ikut")}}
   const hits=a.role==="Peserta"?[]:KW[kind].filter(k=>kwHit(txt,k));
@@ -438,7 +438,7 @@ function relevance(m,a){
   if(prov&&(a.location||"").toLowerCase().includes(prov)){sc+=kind==="bencana"?10:6;why.push("Provinsi sama")}
   const lead=a.role==="Koordinator WASH"||(kind==="non_bencana"&&a.role!=="Peserta");
   if(m.level==="Team Leader"&&lead){sc+=8;why.push("Team Leader")}
-  else if(m.level==="Staf PMI"&&kind==="non_bencana"&&lead){sc+=4}
+  else if((m.level==="Staf PMI"||m.level==="Pengurus PMI")&&kind==="non_bencana"&&lead){sc+=4}
   if(mine&&mine.self&&(mine.state==="mengajukan"||mine.state==="bersedia")){sc+=5;why.push("Mengajukan diri")}
   return {score:Math.max(0,Math.min(100,sc)),why}}
 const NEG_WHY=["Sedang bertugas","Tidak tersedia","Mungkin sudah pernah ikut"];
@@ -448,20 +448,25 @@ const openAlerts=()=>alerts().filter(a=>a.status==="terbuka"&&(!a.deadline||a.de
 function matchesFor(m){return openAlerts().map(a=>({a,r:relevance(m,a),c:(a.cand||{})[m.id]})).sort((x,y)=>y.r.score-x.r.score)}
 function recommendFor(a,n){const cm=a.cand||{};return members().filter(m=>!cm[m.id]&&m.status!=="ditugaskan").map(m=>({m,r:relevance(m,a)})).filter(x=>x.r.score>0).sort((x,y)=>y.r.score-x.r.score||x.m.name.localeCompare(y.m.name)).slice(0,n||5)}
 function memberSummary(m){
-  const past=[];alerts().forEach(a=>{const c=(a.cand||{})[m.id];if(c&&c.state==="terpilih")past.push(a)});past.sort((x,y)=>(y.start||"").localeCompare(x.start||""));
+  const X=m.extra||{},past=[];alerts().forEach(a=>{const c=(a.cand||{})[m.id];if(c&&c.state==="terpilih")past.push(a)});past.sort((x,y)=>(y.start||"").localeCompare(x.start||""));
   const nb=past.filter(a=>kindOf(a)==="non_bencana").length,b=past.length-nb,now=past.find(a=>phase(a)!=="selesai"&&a.start<=today());
-  const txt=((m.skills||"")+" "+(m.chapter||"")).toLowerCase(),hb=KW.bencana.filter(k=>kwHit(txt,k)),hn=KW.non_bencana.filter(k=>kwHit(txt,k));
+  const txt=[m.skills,m.chapter,X.activity,X.contribution,X.confident].filter(Boolean).join(" ").toLowerCase(),hb=KW.bencana.filter(k=>kwHit(txt,k)),hn=KW.non_bencana.filter(k=>kwHit(txt,k));
   const miss=[!m.photo&&"foto",!m.mis&&"No. MIS",!m.chapter&&"asal markas",!m.skills&&"keahlian",!m.phone&&"nomor WA",!m.email&&"email"].filter(Boolean);
-  const reps=Object.keys(m.reports||{}).length;
+  const reps=Object.keys(m.reports||{}).length,from=[m.chapter,m.province].filter(Boolean).map(esc).join(", ");
+  const LV={"Relawan (KSR/TSR)":"teal","Staf PMI":"ok","Pengurus PMI":"red","Team Leader":"red"};
+  const head=`<div class="memb"><span class="pill ${LV[m.level]||"teal"}">${esc(m.level||"Anggota")}</span>${X.position?`<span class="muted">Posisi/jabatan di PMI (isian Form): <b style="color:var(--ink)">${esc(X.position)}</b></span>`:`<span class="muted">Posisi/jabatan di PMI belum diisi di Form.</span>`}</div>`;
   const out=[];
-  const from=[m.chapter,m.province].filter(Boolean).map(esc).join(", ");
-  out.push(`<b>${esc(m.name)}</b> adalah ${esc(m.level||"anggota roster")}${from?" dari "+from:""}, dengan profil WASH <b>${esc(m.role)}</b>.`);
-  out.push(m.skills?`Keahlian &amp; sertifikasi: ${esc(m.skills)}.`:"Belum mengisi keahlian &amp; sertifikasi.");
-  out.push(past.length?`Pengalaman lewat roster: <b>${past.length} penugasan</b> (${b} bencana, ${nb} non bencana), terakhir ${esc(past[0].role)} — ${esc(past[0].title)}.`:"Belum pernah ditugaskan lewat roster.");
+  out.push(`<b>${esc(m.name)}</b> adalah <b>${esc(m.level||"anggota roster")}</b>${X.position&&X.position.toLowerCase()!==String(m.level||"").toLowerCase()?` (${esc(X.position)})`:""}${from?" dari "+from:""}, dengan profil WASH <b>${esc(m.role)}</b>.`);
+  if(X.experience)out.push(`Pengalaman kemanusiaan bersama PMI: <b>${esc(X.experience)}</b>.`);
+  out.push(past.length?`Lewat roster: <b>${past.length} penugasan</b> (${b} bencana, ${nb} non bencana), terakhir ${esc(past[0].role)} — ${esc(past[0].title)}.`:"Belum pernah ditugaskan lewat roster.");
   if(reps)out.push(`Sudah mengirim ${reps} laporan pasca penugasan.`);
   out.push(m.status==="tersedia"?"Saat ini <b>tersedia</b> untuk ditugaskan.":m.status==="ditugaskan"?`Sedang <b>bertugas</b>${now?" di "+esc(now.code):""}.`:"Sedang menandai diri <b>tidak tersedia</b>.");
+  const act=X.activity||X.contribution?`<div class="actbox"><span class="lbl-up" style="font-size:.68rem">Aktivitas keseharian &amp; di masyarakat</span>${X.activity?`<p class="pre">${esc(X.activity)}</p>`:""}${X.contribution?`<details class="more"><summary>Kontribusi pada kegiatan tersebut</summary><p class="pre">${esc(X.contribution)}</p></details>`:""}</div>`:`<p class="muted" style="font-size:.84rem">Aktivitas keseharian belum diisi di Form.</p>`;
+  const bg=[["Pendidikan",[X.education,X.study].filter(Boolean).join(" — ")],["Ingin bertugas di",X.wants],["Percaya diri di",X.confident],["Pelatihan",X.trainings],["Sertifikasi",X.certs],["Skill tambahan",X.skills_extra]].filter(([,v])=>v);
   const str=[];if(hb.length)str.push(`<span class="pill red">Bencana</span> ${esc(hb.slice(0,4).join(", "))}`);if(hn.length)str.push(`<span class="pill teal">Non bencana</span> ${esc(hn.slice(0,4).join(", "))}`);
-  return `<p style="font-size:.9rem;line-height:1.55">${out.join(" ")}</p>${str.length?`<div style="display:flex;flex-direction:column;gap:5px;font-size:.84rem"><span class="muted">Kekuatan terdeteksi:</span>${str.map(x=>`<div>${x}</div>`).join("")}</div>`:""}${miss.length?`<p class="note" style="font-size:.82rem">Data belum lengkap: ${miss.join(", ")}. Profil lengkap membuat rekomendasi lebih tepat.</p>`:""}`}
+  return `${head}<p style="font-size:.9rem;line-height:1.55">${out.join(" ")}</p>${act}
+    ${bg.length?`<dl class="kv bgkv">${bg.map(([k,v])=>`<dt>${k}</dt><dd class="pre">${esc(v)}</dd>`).join("")}</dl>`:""}
+    ${str.length?`<div style="display:flex;flex-direction:column;gap:5px;font-size:.84rem"><span class="muted">Kekuatan terdeteksi:</span>${str.map(x=>`<div>${x}</div>`).join("")}</div>`:""}${miss.length?`<p class="note" style="font-size:.82rem">Data belum lengkap: ${miss.join(", ")}. Profil lengkap membuat rekomendasi lebih tepat.</p>`:""}`}
 function recRow(m,a,r,showAlert){const c=(a.cand||{})[m.id];
   return `<div class="recrow">${scoreBadge(r)}<div class="recbody">${showAlert?`<b>${esc(a.role)} — ${esc(a.title)}</b><small class="muted mono">${esc(a.code)} · ${KINDS[kindOf(a)]} · ${esc(a.location)}</small>`:`<b class="clicky" data-act="selm" data-m="${m.id}">${esc(m.name)}</b><small class="muted">${esc(m.role)} · ${esc(m.province||"-")}</small>`}<small class="why">${esc(reasonSentence(r))}</small></div>
     <div class="recact">${c?pill(CSTAT,c.state):`<button class="btn sm primary" data-act="rec-inv" data-a="${a.id}" data-m="${m.id}">Undang</button>`}</div></div>`}
@@ -1169,7 +1174,7 @@ async function loadAll(){
   const me=S.session.user.id;
   S.admins=ad;S.isAdminAcct=ad.some(x=>x.user_id===me);S.isAdmin=S.isAdminAcct&&hasPasswordSession();
   const members={};let myId=null;
-  m.forEach(x=>{members[x.id]={name:x.name,email:x.email||"",phone:x.phone,role:x.role,level:x.level,province:x.province,chapter:x.chapter,skills:x.skills,lang:x.lang,mis:x.mis||"",status:x.status,photo:x.photo,source:x.source,account:!!x.user_id,hasPassword:!!x.has_password,sheetSig:x.sheet_sig,createdAt:msT(x.created_at),reports:{}};if(x.user_id===me)myId=x.id});
+  m.forEach(x=>{members[x.id]={name:x.name,email:x.email||"",phone:x.phone,role:x.role,level:x.level,province:x.province,chapter:x.chapter,skills:x.skills,lang:x.lang,mis:x.mis||"",extra:x.extra||{},status:x.status,photo:x.photo,source:x.source,account:!!x.user_id,hasPassword:!!x.has_password,sheetSig:x.sheet_sig,createdAt:msT(x.created_at),reports:{}};if(x.user_id===me)myId=x.id});
   r.forEach(x=>{const mm=members[x.member_id];if(mm)mm.reports[x.alert_id]={summary:x.summary,metrics:x.metrics||{},cond:x.cond,issues:x.issues,recs:x.recs,seen:x.seen,at:msT(x.submitted_at)}});
   const alerts={};
   a.forEach(x=>{alerts[x.id]={kind:x.kind||"bencana",focus:x.focus||"",code:x.code,title:x.title,emergency:x.emergency,role:x.role,location:x.location,start:x.start_date,dur:x.dur,deadline:x.deadline,slots:x.slots,desc:x.description,status:x.status,createdAt:msT(x.created_at),announce:x.announce_at?{at:msT(x.announce_at),note:x.announce_note}:null,cand:{}}});
