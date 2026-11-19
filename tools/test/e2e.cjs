@@ -33,19 +33,17 @@ const OUT = process.env.SHOTS || "/tmp";
   await shot("02-admin-alert");
   await step("admin logs out", async () => { await p.click("[data-act=logout]"); await p.waitForSelector("#emailform"); });
 
-  await step("new member: email code → registration (email locked)", async () => {
+  await step("unregistered email is sent to the Google Form", async () => {
     await p.fill("#aemail", "wulan@contoh.id"); await p.click("#emailform button[type=submit]");
-    await p.waitForSelector("#codeform"); await p.fill("#acode", "000000");
-    await p.waitForSelector("text=Kode salah");
+    await p.waitForSelector("#codeform"); await p.fill("#acode", "000000"); await p.waitForSelector("text=Kode salah");
     await p.fill("#acode", "123456");
-    await p.waitForSelector("#mform", { timeout: 4000 });
-    const v = await p.inputValue("#memail"); if (v !== "wulan@contoh.id" || (await p.locator("#memail").getAttribute("type")) !== "hidden") throw new Error("email not locked: " + v);
+    await p.waitForSelector("text=Email ini belum ada di roster", { timeout: 4000 });
+    const href = await p.getAttribute("a:has-text('Isi formulir pendaftaran')", "href"); if (!/forms\.gle/.test(href)) throw new Error("form link " + href);
   });
   await shot("03-register");
-  await step("member registers", async () => {
-    await p.fill("#mname", "Wulan Pratiwi"); await p.fill("#mphone", "081355554444"); await p.selectOption("#mrole", "Promosi Kebersihan");
-    await p.check("#mconsent"); await p.click("[data-act=save-member][data-self]"); await p.waitForSelector("text=Isi provinsi asal.");
-    await p.fill("#mprov", "Jawa Tengah"); await p.click("[data-act=save-member][data-self]");
+  await step("Form answer arrives → 'cek lagi' links the account", async () => {
+    await p.evaluate(() => window.__mockdb.members.push({ id: crypto.randomUUID(), user_id: null, email: "wulan@contoh.id", name: "Wulan Pratiwi", phone: "081355554444", role: "Promosi Kebersihan", level: "Relawan (KSR/TSR)", province: "Jawa Tengah", chapter: "PMI Kota Semarang", skills: "", lang: "", status: "tersedia", photo: "", source: "form", sheet_sig: null, created_at: new Date().toISOString() }));
+    await p.click("[data-act=reclaim]");
     await p.waitForSelector("text=Beranda anggota", { timeout: 4000 });
   });
   await step("member sees alert and applies", async () => {
@@ -70,6 +68,11 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.waitForSelector("text=Diumumkan");
   });
   await shot("05-admin-seleksi");
+  await step("admin opens Google Form integration and generates the script", async () => {
+    await p.click("#tbar [data-act=gform]"); await p.click("[data-act=gform-gen]"); await p.waitForSelector("#gscode");
+    const code = await p.inputValue("#gscode"); if (!/form_intake/.test(code) || !/TOKEN = "rw_[0-9a-f]{48}"/.test(code)) throw new Error("script missing token");
+    await p.click("#modal [data-act=close]");
+  });
   await step("admin appoints wulan as admin", async () => {
     await p.click("#hright [data-act=admins]"); await p.fill("#newadm", "wulan@contoh.id"); await p.click("[data-act=admin-add]"); await p.waitForTimeout(500);
     await p.waitForSelector("#modal >> text=wulan@contoh.id");

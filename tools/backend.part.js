@@ -68,7 +68,8 @@ async function loadAll(){
   c.forEach(x=>{const al=alerts[x.alert_id];if(!al)return;al.cand[x.member_id]={state:x.state,self:x.self_response,respAt:x.self_response?msT(x.answered_at):null,answeredAt:x.self_response?null:msT(x.answered_at),invitedAt:msT(x.invited_at),emailAt:msT(x.email_at),waAt:msT(x.wa_at),cardNo:x.card_no||"",selectedAt:msT(x.selected_at),name:x.name||"",thumb:x.thumb||""}});
   S.members=members;S.alerts=alerts;
   const app=s.find(x=>x.key==="app"),sh=s.find(x=>x.key==="sheet");
-  S.settings={app:app?app.value:{}};S.sync=sh?sh.value:null;
+  const ik=s.find(x=>x.key==="intake");
+  S.settings={app:app?app.value:{}};S.sync=sh?sh.value:null;S.intake=ik?ik.value:null;
   S.uid=myId||"me";S.mcp=S.isAdmin?{}:null;
   S.meProfile={email:(S.session.user.email||"").toLowerCase(),name:""};
   S.loaded=true;S.loadErr=false;render();
@@ -91,7 +92,7 @@ S.auth=S.auth||{mode:"member",step:"email",email:"",err:"",info:"",busy:false,co
 function vSignin(){
   const A=S.auth;
   const err=A.err?`<p class="err">${esc(A.err)}</p>`:"",info=A.info?`<p class="note">${esc(A.info)}</p>`:"";
-  const steps=n=>`<div class="auth-steps"><span class="${n===1?"on":""}">1 · Email</span><span class="${n===2?"on":""}">2 · Kode</span><span>3 · Data singkat</span></div>`;
+  const steps=n=>`<div class="auth-steps"><span class="${n===1?"on":""}">1 · Email</span><span class="${n===2?"on":""}">2 · Kode dari email</span></div>`;
   if(A.mode==="admin")return `<section class="panel authcard" id="authbox"><div><p class="eyebrow">Khusus admin</p><h1 class="auth-h">Masuk admin</h1></div>
      <form class="form one" id="adminform" novalidate><div class="field"><label for="admail">Email</label><input class="input" id="admail" type="email" autocomplete="username" value="${esc(A.email)}"></div>
      <div class="field"><label for="adpw">Password</label><input class="input" id="adpw" type="password" autocomplete="current-password"></div>${err}${info}
@@ -101,10 +102,10 @@ function vSignin(){
      <form class="form one" id="codeform" novalidate><input class="input codein" id="acode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="••••••" aria-label="Kode verifikasi">${err}${info}
      <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
      <div class="row" style="justify-content:space-between"><button class="btn sm ghost" data-act="auth-back">← Ganti email</button><button class="btn sm ghost" data-act="otp-resend" ${A.cool>Date.now()?"disabled":""}>Kirim ulang kode</button></div></section>`;
-  return `<section class="panel authcard" id="authbox">${steps(1)}<div><h1 class="auth-h">Daftar atau masuk</h1><p class="muted">Untuk relawan &amp; staf WASH PMI. Cukup masukkan email aktif Anda.</p></div>
+  return `<section class="panel authcard" id="authbox">${steps(1)}<div><h1 class="auth-h">Masuk anggota</h1><p class="muted">Untuk relawan &amp; staf WASH PMI. Masukkan email yang Anda pakai saat mendaftar.</p></div>
      <form class="form one" id="emailform" novalidate><input class="input" id="aemail" type="email" autocomplete="email" placeholder="nama@contoh.id" value="${esc(A.email)}" aria-label="Email aktif" style="padding:12px">${err}${info}
      <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Mengirim kode…":"Lanjut"}</button></form>
-     <p class="muted" style="font-size:.8rem">Anggota baru otomatis diarahkan ke pendaftaran. Anggota lama langsung masuk.</p>
+     <div class="note" style="display:flex;flex-direction:column;gap:8px"><span><b style="color:var(--ink)">Belum terdaftar?</b> Isi formulir pendaftaran dulu, lalu masuk di sini dengan email yang sama.</span><a class="btn" href="${esc(formUrl())}" target="_blank" rel="noopener">${I.edit}Isi formulir pendaftaran</a></div>
      <div style="text-align:center;border-top:1px solid var(--line);padding-top:12px"><button class="btn sm ghost" data-act="auth-mode" data-v="admin">Masuk sebagai admin</button></div></section>`}
 document.addEventListener("input",e=>{if(e.target&&e.target.id==="acode"){const d=e.target.value.replace(/\D/g,"");if(d.length===6&&!S.auth.busy)verifyCode(d)}});
 function authRender(){S.view="signin";$("#cp").innerHTML=vSignin();const f=$("#aemail")||$("#acode")||$("#adpw");if(f&&!S.auth.busy)f.focus()}
@@ -187,4 +188,85 @@ async function onSession(session,ev){
   if(location.hash&&/access_token|error_description/.test(location.hash))history.replaceState(null,"",location.pathname);
   if(prevUser!==session.user.id){S.loaded=false;render()}
   S.auth={mode:"member",step:"email",email:"",err:"",info:"",busy:false,cool:0};
+  try{await sb.rpc("claim_my_member")}catch(e){}
   startRealtime();await loadAll()}
+
+/* ---------- Google Form integration (admin) ---------- */
+function appsScriptCode(token){return `// Roster WASH PMI — kirim jawaban Google Form ke roster
+// Dibuat otomatis oleh aplikasi Roster WASH. Jangan bagikan file ini: TOKEN bersifat rahasia.
+const SUPABASE_URL = "${SB_URL}";
+const SUPABASE_KEY = "${SB_KEY}";
+const TOKEN = "${token}";
+
+function kirimKeRoster_(answers, email) {
+  const res = UrlFetchApp.fetch(SUPABASE_URL + "/rest/v1/rpc/form_intake", {
+    method: "post", contentType: "application/json", muteHttpExceptions: true,
+    headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY },
+    payload: JSON.stringify({ p_token: TOKEN, p_answers: answers, p_email: email || null })
+  });
+  if (res.getResponseCode() >= 300) throw new Error("Roster menolak (" + res.getResponseCode() + "): " + res.getContentText());
+  return res.getContentText();
+}
+
+function jawabanKeObjek_(response) {
+  const o = {};
+  response.getItemResponses().forEach(function (r) {
+    const v = r.getResponse();
+    o[r.getItem().getTitle()] = Array.isArray(v) ? v.map(String) : String(v);
+  });
+  return o;
+}
+
+// Dijalankan otomatis setiap ada jawaban baru.
+function saatFormDikirim(e) {
+  kirimKeRoster_(jawabanKeObjek_(e.response), e.response.getRespondentEmail());
+}
+
+// Jalankan SEKALI untuk memasang pengiriman otomatis.
+function pasangPemicu() {
+  const form = FormApp.getActiveForm();
+  ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === "saatFormDikirim"; })
+    .forEach(function (t) { ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger("saatFormDikirim").forForm(form).onFormSubmit().create();
+  console.log("Pengiriman otomatis terpasang.");
+}
+
+// Jalankan SEKALI untuk mengirim semua jawaban lama ke roster.
+function kirimSemuaJawaban() {
+  let ok = 0, gagal = 0;
+  FormApp.getActiveForm().getResponses().forEach(function (r) {
+    try { kirimKeRoster_(jawabanKeObjek_(r), r.getRespondentEmail()); ok++; }
+    catch (err) { gagal++; console.log(err.message); }
+  });
+  console.log(ok + " jawaban terkirim, " + gagal + " gagal.");
+}
+`}
+function gformModal(code){
+  const ik=S.intake||{};
+  const status=ik.token_set_at?`<span class="pill ok">Token aktif sejak ${stampT(msT(ik.token_set_at))}</span>`:`<span class="pill off">Belum dipasang</span>`;
+  const last=ik.last_at?`<span class="muted" style="font-size:.84rem">${nf(ik.count||0)} jawaban diterima · terakhir ${stampT(msT(ik.last_at))} (${esc(ik.last_result||"")})</span>`:`<span class="muted" style="font-size:.84rem">Belum ada jawaban yang diterima.</span>`;
+  openModal("Pendaftaran lewat Google Form",`<p class="muted">Setiap jawaban Google Form langsung masuk ke roster. Anggota lalu cukup masuk dengan kode email; akunnya otomatis tersambung ke data Form, tanpa daftar dua kali.</p>
+   <div class="row" style="gap:8px">${status}</div>${last}
+   <div class="field"><label for="gfurl">Link formulir pendaftaran (ditampilkan ke anggota)</label><div class="row" style="flex-wrap:nowrap"><input class="input" id="gfurl" value="${esc(formUrl())}"><button class="btn" data-act="gform-url">Simpan</button></div></div>
+   ${code?`<div class="note" style="display:flex;flex-direction:column;gap:6px"><b style="color:var(--ink)">Pasang di Google Form (sekali saja)</b>
+     <span>1. Di Google Form: <b>Setelan → Jawaban → Kumpulkan alamat email</b> = <b>Terverifikasi</b>.</span>
+     <span>2. Buka menu <b>⋮ → Apps Script</b>, hapus isi bawaannya, tempel kode di bawah, lalu klik <b>Simpan</b>.</span>
+     <span>3. Pilih fungsi <b>pasangPemicu</b> → <b>Jalankan</b> → izinkan akses akun Google Anda.</span>
+     <span>4. Pilih fungsi <b>kirimSemuaJawaban</b> → <b>Jalankan</b> untuk memasukkan jawaban lama.</span></div>
+     <p class="err" style="font-size:.82rem">Kode ini berisi token rahasia dan hanya ditampilkan sekarang. Salin sebelum menutup jendela ini.</p>
+     <textarea class="input mono" id="gscode" style="min-height:220px;font-size:.72rem" readonly>${esc(code)}</textarea>`
+   :`<p class="note">${ik.token_set_at?"Membuat kode baru akan mengganti token lama; kode Apps Script yang lama berhenti bekerja dan harus diganti dengan yang baru.":"Buat kode Apps Script untuk dipasang di Google Form Anda."}</p>`}`,
+   code?`<button class="btn" data-act="gform-copy">${I.copy}Salin kode</button><button class="btn primary" data-act="close">Selesai</button>`
+       :`<button class="btn" data-act="close">Tutup</button><button class="btn primary" data-act="gform-gen">${ik.token_set_at?"Buat kode baru":"Buat kode Apps Script"}</button>`,true)}
+async function gformGen(){
+  const bytes=crypto.getRandomValues(new Uint8Array(24));const token="rw_"+[...bytes].map(b=>b.toString(16).padStart(2,"0")).join("");
+  const {error}=await sb.rpc("set_intake_token",{p_token:token});
+  if(error){toast(error.message||"Gagal membuat token");return}
+  await loadAll();gformModal(appsScriptCode(token))}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="gform"){if(!S.isAdmin){toast("Masuk Mode Admin dulu.");return}gformModal(null)}
+  else if(a==="gform-gen")gformGen();
+  else if(a==="gform-copy"){copy($("#gscode").value,"Kode Apps Script")}
+  else if(a==="gform-url"){const v=($("#gfurl").value||"").trim();if(!/^https:\/\//.test(v)){toast("Link harus diawali https://");return}await write("set","settings","app",Object.assign({},S.settings.app||{},{formUrl:v})).catch(()=>{});toast("Link formulir disimpan")}
+  else if(a==="reclaim"){b.disabled=true;b.textContent="Memeriksa…";try{await sb.rpc("claim_my_member")}catch(err){}await loadAll();if(!S.members[S.uid]||S.uid==="me")toast("Belum ditemukan. Pastikan emailnya sama, lalu coba lagi sebentar lagi.")}
+});
