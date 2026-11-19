@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import QRCode from "qrcode";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import ID_GEO from "./indonesia-map.json";
 window.XLSX = XLSX;
 // Proyek Supabase Roster WASH. Kunci "anon" ini publik (memang dikirim ke browser);
 // keamanan data dijaga oleh aturan Row Level Security di supabase/schema.sql.
@@ -1683,7 +1684,8 @@ function mountMap() {
   if (!RMAP_EL) {
     RMAP_EL = document.createElement("div"); RMAP_EL.className = "rmap"; RMAP_EL.setAttribute("aria-label", "Peta sebaran anggota roster per provinsi");
     slot.appendChild(RMAP_EL);
-    RMAP = L.map(RMAP_EL, { zoomControl: true, scrollWheelZoom: false, attributionControl: true, minZoom: 3, maxZoom: 9, zoomSnap: 0.25 });
+    RMAP = L.map(RMAP_EL, { zoomControl: true, scrollWheelZoom: false, attributionControl: true, minZoom: 3, maxZoom: 8, zoomSnap: 0.25, maxBounds: [[-20, 85], [16, 152]], maxBoundsViscosity: .8 });
+    RMAP.attributionControl.setPrefix(false).addAttribution("Peta dasar: Natural Earth");
     RMAP.fitBounds(ID_BOUNDS, { padding: [8, 8] });
     RMAP.on("dragstart", () => { RMAP._touched = true; }); RMAP_EL.addEventListener("wheel", () => { RMAP._touched = true; }, { passive: true });
     RMAP.on("zoomstart", e => { if (!RMAP._fitting) RMAP._touched = true; });
@@ -1692,11 +1694,14 @@ function mountMap() {
     RMAP.on("zoomend", drawBubbles);
     RMAP_LAYER = L.layerGroup().addTo(RMAP);
   } else slot.appendChild(RMAP_EL);
-  const style = darkMode() ? "dark_all" : "light_all";
-  if (!RMAP_TILE || RMAP_TILE._style !== style) {
+  const dark = darkMode();
+  if (!RMAP_TILE || RMAP_TILE._dark !== dark) {
     if (RMAP_TILE) RMAP.removeLayer(RMAP_TILE);
-    RMAP_TILE = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, { subdomains: "abcd", maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' }).addTo(RMAP);
-    RMAP_TILE._style = style;
+    const C = dark ? { id: ["#1D3352", "#33557F"], x: ["#16263C", "#1E3350"] } : { id: ["#FFFFFF", "#A9C3E3"], x: ["#E6EDF5", "#D3DEEA"] };
+    RMAP_TILE = L.geoJSON(ID_GEO, { interactive: false, style: f => f.properties.id === "ID"
+      ? { fillColor: C.id[0], fillOpacity: 1, color: C.id[1], weight: 1, lineJoin: "round" }
+      : { fillColor: C.x[0], fillOpacity: 1, color: C.x[1], weight: .6 } }).addTo(RMAP);
+    RMAP_TILE._dark = dark; RMAP_EL.classList.toggle("dark", dark);
   }
   drawBubbles(); setTimeout(refitMap, 0);
 }
@@ -1705,9 +1710,9 @@ function drawBubbles() {
   const { list } = provStats(), max = list[0] ? list[0].n : 1;
   list.slice().reverse().forEach(o => {
     const ll = PROV_LL[o.p]; if (!ll) return;
-    const z = RMAP.getZoom(), sc = Math.max(.7, Math.min(1.5, 1 + (z - 4.5) * .35)), d = Math.round((18 + 26 * Math.sqrt(o.n / max)) * sc), lvl = o.n / max > .66 ? "l" : o.n / max > .33 ? "m" : "s";
+    const z = RMAP.getZoom(), sc = Math.max(.48, Math.min(1.5, 1 + (z - 4.5) * .4)), d = Math.round((18 + 26 * Math.sqrt(o.n / max)) * sc), lvl = o.n / max > .66 ? "l" : o.n / max > .33 ? "m" : "s";
     const roles = Object.entries(o.roles).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([r, n]) => `${esc(r)} (${n})`).join("<br>");
-    const mk = L.marker(ll, { icon: L.divIcon({ className: "", html: `<div class="mbub ${lvl}" style="width:${d}px;height:${d}px;font-size:${d > 40 ? 14 : d > 28 ? 12 : 11}px">${o.n}</div>`, iconSize: [d, d], iconAnchor: [d / 2, d / 2] }), title: o.p, keyboard: true, riseOnHover: true });
+    const mk = L.marker(ll, { icon: L.divIcon({ className: "", html: `<div class="mbub ${lvl}" style="width:${d}px;height:${d}px;font-size:${d > 40 ? 14 : d > 28 ? 12 : d > 18 ? 10 : 9}px;border-width:${d > 22 ? 2.5 : 1.5}px">${o.n}</div>`, iconSize: [d, d], iconAnchor: [d / 2, d / 2] }), title: o.p, keyboard: true, riseOnHover: true });
     mk.bindTooltip(`<div class="mtip"><b>${esc(o.p)}</b><div class="mtip-n">${o.n} anggota · ${o.avail} tersedia</div><div class="mtip-k"><span>Relawan <b>${o.rel}</b></span><span>Staf <b>${o.staf}</b></span><span>Pengurus <b>${o.peng}</b></span></div>${roles ? `<div class="mtip-r">${roles}</div>` : ""}<div class="mtip-h">Klik untuk melihat daftar anggota</div></div>`, { direction: "top", offset: [0, -d / 2], opacity: 1, className: "mtipwrap" });
     mk.on("click", () => goProv(o.p));
     RMAP_LAYER.addLayer(mk);
