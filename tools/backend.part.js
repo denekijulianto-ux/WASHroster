@@ -120,7 +120,8 @@ function vSignin(){
        ${err}${info}
        <button class="btn primary big" type="submit" ${A.busy?"disabled":""}>${A.busy?"Memeriksa…":"Masuk"}</button></form>
      <div class="note" style="display:flex;flex-direction:column;gap:8px"><span><b style="color:var(--ink)">Pertama kali masuk?</b> Sudah mengisi formulir pendaftaran tapi belum punya password.</span><button class="btn" data-act="auth-mode" data-v="activate">Aktifkan akun</button></div>
-     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><a class="btn sm ghost" href="${esc(formUrl())}" target="_blank" rel="noopener">Belum terdaftar? Isi formulir</a><button class="btn sm ghost" data-act="pw-help">Lupa password?</button></div></section>`}
+     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><a class="btn sm ghost" href="${esc(formUrl())}" target="_blank" rel="noopener">Belum terdaftar? Isi formulir</a><button class="btn sm ghost" data-act="pw-help">Lupa password?</button></div>
+     ${washpediaHTML(true)}</section>`}
 async function passwordLogin(email,pw){
   const A=S.auth;email=String(email||"").trim().toLowerCase();A.email=email;
   if(!/^\S+@\S+\.\S+$/.test(email)||!pw){A.err="Isi email dan password.";authRender();return}
@@ -495,3 +496,10 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]
 },true);
 
 document.addEventListener("input",e=>{if(e.target.id==="bc-q"&&bcState){bcState.q=e.target.value;const pos=e.target.selectionStart;bcRender();const i=$("#bc-q");if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(err){}}}});
+
+/* ---------- WASHPEDIA: pusat informasi WASH PMI ---------- */
+const WASHPEDIA_URL="https://bit.ly/WASHPEDIA2026";
+function washpediaHTML(compact){
+  const icon=I.info.replace("<svg",'<svg width="18" height="18" style="vertical-align:-4px"');
+  if(compact)return `<a class="lbox" href="${WASHPEDIA_URL}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><b>${icon} WASHPEDIA</b><span class="muted" style="font-size:.84rem">Pusat informasi tentang WASH PMI. Buka →</span></a>`;
+  return `<section class="card" id="washpedia"><div class="card-b row" style="justify-content:space-between;gap:10px"><div><b>${icon} WASHPEDIA</b><div class="muted" style="font-size:.84rem">Pusat informasi tentang WASH PMI.</div></div><a class="btn primary" href="${WASHPEDIA_URL}" target="_blank" rel="noopener">Buka WASHPEDIA</a></div></section>`}
