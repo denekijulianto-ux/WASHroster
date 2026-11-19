@@ -2,7 +2,12 @@ import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import QRCode from "qrcode";
 window.XLSX = XLSX;
-const SB_URL = import.meta.env.VITE_SUPABASE_URL, SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Proyek Supabase Roster WASH. Kunci "anon" ini publik (memang dikirim ke browser);
+// keamanan data dijaga oleh aturan Row Level Security di supabase/schema.sql.
+// Variabel lingkungan VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY tetap bisa menimpanya.
+const DEFAULT_SB_URL = "https://pzoueizgwgccacixelgi.supabase.co";
+const DEFAULT_SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6b3VlaXpnd2djY2FjaXhlbGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUwMTIxNDAsImV4cCI6MjExMDU4ODE0MH0.UjD00q9TXgoxiK6Owet5D3YJtwTts00OBaK_XL91SHg";
+const SB_URL = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SB_URL, SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SB_KEY;
 const sb = SB_URL && SB_KEY ? createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
 const ROLES=["Koordinator WASH","Suplai Air Bersih","Sanitasi & Limbah","Promosi Kebersihan","Kualitas Air","Pengendalian Vektor","Operator Unit Pengolahan Air"];
 const LEVELS=["Relawan (KSR/TSR)","Staf PMI","Team Leader"];
