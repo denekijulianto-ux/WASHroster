@@ -350,7 +350,7 @@ function alertInspector(a){
   const cs=cands(a),n=s=>cs.filter(c=>c.state===s).length;
   return `<div class="isec"><div class="row" style="gap:8px"><span class="mono muted">${esc(a.code)}</span>${pill(ASTAT,a.status)}</div><h2>${esc(a.role)} — ${esc(a.title)}</h2>
     <a class="btn primary" href="#seleksi-${a.id}">${I.check}Buka seleksi kandidat</a>
-    <button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.bell}Kirim alert ke semua anggota (WA &amp; email)</button>${bcHistory(a.id)}
+    <button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.mail}Kirim alert lewat email ke semua anggota</button>${bcHistory(a.id)}
     <div class="row" style="gap:6px"><button class="btn sm" data-act="edit-alert" data-a="${a.id}">${I.edit}Ubah</button>${a.status==="terbuka"?`<button class="btn sm" data-act="astatus" data-v="ditutup" data-a="${a.id}">Tutup alert</button>`:`<button class="btn sm" data-act="astatus" data-v="terbuka" data-a="${a.id}">Buka kembali</button>`}<button class="btn sm ghost danger" data-act="del-alert" data-a="${a.id}">Hapus</button></div></div>
    <div class="isec"><span class="lbl-up">Penugasan</span><dl class="kv"><dt>Jenis bencana</dt><dd>${esc(a.emergency||"-")}</dd><dt>Lokasi</dt><dd>${esc(a.location)}</dd><dt>Mulai</dt><dd>${fmtLong(a.start)}</dd><dt>Selesai</dt><dd>${fmtLong(endOf(a))}</dd><dt>Durasi</dt><dd>${a.dur} hari</dd><dt>Batas konfirmasi</dt><dd>${fmtLong(a.deadline)}</dd><dt>Kebutuhan</dt><dd>${a.slots||1} orang</dd></dl>${a.desc?`<p class="muted" style="font-size:.86rem;white-space:pre-line">${esc(a.desc)}</p>`:""}</div>
    <div class="isec"><span class="lbl-up">Kandidat</span><dl class="kv"><dt>Diundang</dt><dd>${n("diundang")}</dd><dt>Mengajukan diri</dt><dd>${n("mengajukan")}</dd><dt>Bersedia</dt><dd>${n("bersedia")}</dd><dt>Menolak</dt><dd>${n("menolak")}</dd><dt>Terpilih</dt><dd>${n("terpilih")} / ${a.slots||1}</dd></dl></div>`}
@@ -393,7 +393,7 @@ function selCenter(a){
 function selInspector(a){
   if(!a)return ihint("Pilih alert di panel kiri untuk mulai menyeleksi kandidat.");
   const emails=cands(a).filter(c=>c.state!=="menolak"&&S.members[c.mid]&&S.members[c.mid].email).map(c=>S.members[c.mid].email);
-  return annAdminBox(a)+`<div class="isec"><span class="lbl-up">Kirim ke semua anggota</span><button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.bell}Kirim alert (WA &amp; email)</button>${a.announce&&a.announce.at?`<button class="btn" data-act="bc-open" data-k="announce" data-a="${a.id}">${I.chart}Kirim pengumuman hasil seleksi (WA &amp; email)</button>`:""}${bcHistory(a.id)}</div><div class="isec"><span class="lbl-up">Kirim massal ke kandidat</span>${emails.length?`<a class="btn" target="_blank" rel="noopener" href="${esc(mailHref("","Alert penugasan WASH: "+a.code+" "+a.role,inviteText(a,null),emails.join(",")))}">${I.mail}Email semua kandidat (BCC, ${emails.length})</a><button class="btn sm ghost" data-act="copyemails" data-a="${a.id}">${I.copy}Salin daftar email</button>`:`<p class="muted">Belum ada kandidat dengan email.</p>`}<p class="note">WhatsApp tidak bisa dikirim massal dari halaman ini. Gunakan tombol WA per orang di tabel kandidat.</p></div>
+  return annAdminBox(a)+`<div class="isec"><span class="lbl-up">Kirim ke semua anggota</span><button class="btn" data-act="bc-open" data-k="alert" data-a="${a.id}">${I.mail}Kirim alert lewat email</button>${a.announce&&a.announce.at?`<button class="btn" data-act="bc-open" data-k="announce" data-a="${a.id}">${I.mail}Kirim pengumuman lewat email</button>`:""}${bcHistory(a.id)}</div><div class="isec"><span class="lbl-up">Kirim massal ke kandidat</span>${emails.length?`<a class="btn" target="_blank" rel="noopener" href="${esc(mailHref("","Alert penugasan WASH: "+a.code+" "+a.role,inviteText(a,null),emails.join(",")))}">${I.mail}Email semua kandidat (BCC, ${emails.length})</a><button class="btn sm ghost" data-act="copyemails" data-a="${a.id}">${I.copy}Salin daftar email</button>`:`<p class="muted">Belum ada kandidat dengan email.</p>`}<p class="note">WhatsApp tidak bisa dikirim massal dari halaman ini. Gunakan tombol WA per orang di tabel kandidat.</p></div>
    <div class="isec"><div class="spread"><span class="lbl-up">Teks alert</span><button class="btn sm ghost" data-act="copyalert" data-a="${a.id}">${I.copy}Salin</button></div><div class="msgbox">${esc(inviteText(a,null))}</div></div>
    <div class="isec"><div class="row" style="gap:6px"><button class="btn sm" data-act="edit-alert" data-a="${a.id}">${I.edit}Ubah alert</button>${a.status==="terbuka"?`<button class="btn sm" data-act="astatus" data-v="ditutup" data-a="${a.id}">Tutup alert</button>`:`<button class="btn sm" data-act="astatus" data-v="terbuka" data-a="${a.id}">Buka kembali</button>`}</div></div>`}
 function vSelTab(){
@@ -1329,29 +1329,36 @@ async function bcCall(body){
     const j=await r.json().catch(()=>({}));return Object.assign({httpOk:r.ok,http:r.status},j)}
   catch(e){return {httpOk:false,error:"network"}}}
 function bcHistory(aid){const h=(S.broadcasts||[]).filter(b=>b.alert_id===aid);if(!h.length)return"";
-  return `<div class="dlist" style="font-size:.8rem">${h.slice(0,4).map(b=>`<div class="ditem"><div><div class="t" style="font-size:.82rem">${b.kind==="alert"?"Alert":"Pengumuman"} terkirim ${stampT(Date.parse(b.at))}</div><div class="s">${b.email_sent} email${b.email_error?" (ada error)":""} · ${b.wa_sent} WhatsApp${b.wa_error?" (ada error)":""}</div></div></div>`).join("")}</div>`}
+  return `<div class="dlist" style="font-size:.8rem">${h.slice(0,4).map(b=>`<div class="ditem"><div><div class="t" style="font-size:.82rem">${b.kind==="alert"?"Alert":"Pengumuman"} terkirim ${stampT(Date.parse(b.at))}</div><div class="s">${b.email_sent} email${b.email_error?" (ada error)":""}</div></div></div>`).join("")}</div>`}
 function bcRecipients(kind,a,aud){const ms=members();return kind==="alert"&&aud==="role"?ms.filter(m=>m.role===a.role):kind==="alert"&&aud==="available"?ms.filter(m=>m.status==="tersedia"):ms}
 function bcText(kind,a){return kind==="announce"?annText(a):`*ALERT PENUGASAN · ROSTER WASH PMI*\nKode: ${a.code}\nOperasi: ${a.title}${a.emergency?` (${a.emergency})`:""}\nPosisi dibutuhkan: ${a.role} · ${a.slots||1} orang\nLokasi: ${a.location}\nPeriode: ${fmtLong(a.start)} – ${fmtLong(endOf(a))} (${a.dur} hari)\nBatas konfirmasi: ${fmtLong(a.deadline)}\n${a.desc?"\n"+a.desc+"\n":""}\nBila bersedia, masuk ke aplikasi Roster WASH lalu tekan *Ajukan diri* pada alert ini sebelum batas konfirmasi.\n${redirectTo()}\n— Admin Roster WASH PMI`}
 let bcState=null;
+function gmailLinks(kind,a,rec){
+  const emails=[...new Set(rec.map(m=>(m.email||"").trim().toLowerCase()).filter(e=>/^\S+@\S+\.\S+$/.test(e)))];
+  const subj=kind==="announce"?`Pengumuman hasil seleksi ${a.code}: ${a.role} — ${a.title}`:`Alert penugasan ${a.code}: ${a.role} di ${a.location}`;
+  const body=bcText(kind,a).replace(/\*/g,"");const out=[];
+  for(let i=0;i<emails.length;i+=40){const part=emails.slice(i,i+40);
+    out.push({from:i+1,to:i+part.length,href:"https://mail.google.com/mail/?view=cm&fs=1&bcc="+encodeURIComponent(part.join(","))+"&su="+encodeURIComponent(subj)+"&body="+encodeURIComponent(body)})}
+  return {emails,links:out}}
 function bcRender(){
   const st=bcState,a=Object.assign({id:st.aid},S.alerts[st.aid]||{});
-  const rec=bcRecipients(st.kind,a,st.aud),nE=rec.filter(m=>/^\S+@\S+\.\S+$/.test(m.email||"")).length,nW=rec.filter(m=>waNum(m.phone).length>=10).length;
-  const ch=st.channels;
-  const chBox=(k,label,n,ok,why)=>`<label class="consent" style="${ok?"":"opacity:.6"}"><input type="checkbox" id="bc-${k}" ${ok&&st[k]?"checked":""} ${ok?"":"disabled"}><span><b style="color:var(--ink)">${label}</b> · ${n} penerima${ok?"":`<br><span class="muted">${why}</span>`}</span></label>`;
-  openModal(st.kind==="alert"?"Kirim alert ke anggota":"Kirim pengumuman hasil seleksi",
-   st.result?bcResultHTML(st.result):`
-   ${ch?"":`<div class="skeleton" style="height:60px"></div>`}
-   ${ch?`<div style="display:flex;flex-direction:column;gap:10px">${chBox("email","Email",nE,ch.email,"Belum aktif: isi rahasia GMAIL_USER dan GMAIL_APP_PASSWORD di Supabase.")}${chBox("wa","WhatsApp",nW,ch.wa,"Belum aktif: isi rahasia FONNTE_TOKEN di Supabase (butuh akun Fonnte).")}</div>`:""}
-   ${st.kind==="alert"?`<div class="field"><label for="bc-aud">Penerima</label><select class="input" id="bc-aud"><option value="all" ${st.aud==="all"?"selected":""}>Semua anggota roster (${members().length})</option><option value="role" ${st.aud==="role"?"selected":""}>Hanya profil ${esc(a.role)} (${bcRecipients("alert",a,"role").length})</option><option value="available" ${st.aud==="available"?"selected":""}>Hanya yang berstatus tersedia (${bcRecipients("alert",a,"available").length})</option></select></div>`:`<p class="muted">Dikirim ke semua ${members().length} anggota roster.</p>`}
-   <div class="field"><label>Isi pesan</label><div class="msgbox">${esc(bcText(st.kind,a))}</div></div>
+  const rec=bcRecipients(st.kind,a,st.aud),g=gmailLinks(st.kind,a,rec);
+  const ch=st.channels,auto=!!(ch&&ch.email);
+  const title=st.kind==="alert"?"Kirim alert lewat email":"Kirim pengumuman lewat email";
+  openModal(title,st.result?bcResultHTML(st.result):`
+   ${st.kind==="alert"?`<div class="field"><label for="bc-aud">Penerima</label><select class="input" id="bc-aud"><option value="all" ${st.aud==="all"?"selected":""}>Semua anggota roster (${members().length})</option><option value="role" ${st.aud==="role"?"selected":""}>Hanya profil ${esc(a.role)} (${bcRecipients("alert",a,"role").length})</option><option value="available" ${st.aud==="available"?"selected":""}>Hanya yang berstatus tersedia (${bcRecipients("alert",a,"available").length})</option></select></div>`:`<p class="muted">Dikirim ke semua anggota roster.</p>`}
+   <div class="lbox"><b>${g.emails.length} alamat email</b><span class="muted" style="font-size:.84rem">Dikirim sebagai BCC, jadi alamat anggota tidak saling terlihat.</span></div>
+   ${!ch?`<div class="skeleton" style="height:56px"></div>`:auto?`<div class="note" style="background:var(--ok-soft);color:var(--ok)"><b>Pengiriman otomatis aktif.</b> Tekan <b>Kirim sekarang</b>; email langsung terkirim dari server.</div>`
+     :`<div class="note" style="display:flex;flex-direction:column;gap:8px"><b style="color:var(--ink)">Kirim lewat Gmail Anda</b><span>Tekan tombol di bawah. Gmail terbuka dengan penerima, judul, dan isi pesan sudah terisi, lalu tekan <b>Kirim</b> di Gmail.${g.links.length>1?` Penerima dibagi per 40 alamat, jadi ada ${g.links.length} email.`:""}</span>
+       <div class="row" style="gap:6px">${g.links.map((l,i)=>`<a class="btn ${i===0?"primary":""}" target="_blank" rel="noopener" href="${esc(l.href)}">${I.mail}${g.links.length>1?`Gmail ${i+1} (penerima ${l.from}–${l.to})`:"Buka di Gmail"}</a>`).join("")||`<span class="muted">Tidak ada alamat email.</span>`}</div>
+       <span class="muted" style="font-size:.8rem">Ingin terkirim otomatis tanpa membuka Gmail? Isi rahasia <span class="mono">GMAIL_USER</span> dan <span class="mono">GMAIL_APP_PASSWORD</span> di Supabase → Edge Functions → Secrets.</span></div>`}
+   <div class="field"><label>Isi pesan</label><div class="msgbox">${esc(bcText(st.kind,a).replace(/\*/g,""))}</div></div>
    ${st.err?`<p class="err">${esc(st.err)}</p>`:""}`,
-   st.result?`<button class="btn primary" data-act="close">Selesai</button>`:`<button class="btn" data-act="close">Nanti saja</button><button class="btn primary" data-act="bc-send" ${!ch||st.busy?"disabled":""}>${st.busy?"Mengirim…":"Kirim sekarang"}</button>`,true)}
+   st.result?`<button class="btn primary" data-act="close">Selesai</button>`:auto?`<button class="btn" data-act="close">Nanti saja</button><button class="btn primary" data-act="bc-send" ${st.busy?"disabled":""}>${st.busy?"Mengirim…":"Kirim sekarang"}</button>`:`<button class="btn" data-act="close">Tutup</button>`,true)}
 function bcResultHTML(r){
-  if(!r.httpOk)return `<p class="err">${r.error==="admin_only"?"Hanya admin yang masuk dengan password yang bisa mengirim.":r.error==="no_channel"?"Belum ada saluran yang aktif.":r.error==="network"?"Tidak bisa terhubung ke server.":"Gagal mengirim ("+esc(r.error||r.http)+")."}</p>`;
-  return `<div style="display:flex;flex-direction:column;gap:10px">
-    <div class="row" style="gap:8px">${pill({x:["Selesai","ok"]},"x")}<span class="muted">${r.recipients} anggota dituju</span></div>
-    <div class="lbox"><b>Email</b>${r.email_error?`<span class="err" style="font-size:.84rem">Gagal: ${esc(r.email_error)}</span>`:`<span>${r.email_sent} email terkirim (BCC, alamat anggota tidak saling terlihat).</span>`}</div>
-    <div class="lbox"><b>WhatsApp</b>${!r.channels||!r.channels.wa?`<span class="muted">Belum aktif.</span>`:r.wa_error?`<span class="err" style="font-size:.84rem">Gagal: ${esc(r.wa_error)}</span>`:`<span>${r.wa_sent} pesan masuk antrean Fonnte. Pesan dikirim bertahap dengan jeda 5–15 detik agar nomor tidak diblokir.</span>`}</div></div>`}
+  if(!r.httpOk)return `<p class="err">${r.error==="admin_only"?"Hanya admin yang masuk dengan password yang bisa mengirim.":r.error==="no_channel"?"Pengiriman otomatis belum aktif.":r.error==="network"?"Tidak bisa terhubung ke server.":"Gagal mengirim ("+esc(r.error||r.http)+")."}</p>`;
+  return r.email_error?`<p class="err">Email gagal dikirim: ${esc(r.email_error)}</p><p class="muted">Periksa rahasia GMAIL_USER dan GMAIL_APP_PASSWORD di Supabase (harus akun Gmail yang sama dengan App Password).</p>`
+    :`<div class="lbox">${pill({x:["Terkirim","ok"]},"x")}<span>${r.email_sent} email terkirim ke anggota (BCC).</span></div>`}
 async function broadcastModal(kind,aid){
   if(!S.isAdmin){toast("Masuk Mode Admin dulu.");return}
   bcState={kind,aid,aud:"all",email:true,wa:true,channels:null,busy:false,err:"",result:null};bcRender();
@@ -1362,13 +1369,12 @@ async function broadcastModal(kind,aid){
   bcRender()}
 async function bcSend(){
   const st=bcState;if(!st)return;
-  st.email=!!($("#bc-email")&&$("#bc-email").checked);st.wa=!!($("#bc-wa")&&$("#bc-wa").checked);const aud=$("#bc-aud");if(aud)st.aud=aud.value;
-  if(!st.email&&!st.wa){st.err="Pilih minimal satu saluran: Email atau WhatsApp.";bcRender();return}
+  const aud=$("#bc-aud");if(aud)st.aud=aud.value;
   st.busy=true;st.err="";bcRender();
-  const r=await bcCall({kind:st.kind,alert_id:st.aid,audience:st.aud,email:st.email,wa:st.wa,link:redirectTo()});
+  const r=await bcCall({kind:st.kind,alert_id:st.aid,audience:st.aud,email:true,wa:false,link:redirectTo()});
   st.busy=false;st.result=r;bcRender();
   try{sb.from("broadcasts").select("*").order("at",{ascending:false}).limit(100).then(x=>{S.broadcasts=(x&&x.data)||[];render()},()=>{})}catch(e){}}
-document.addEventListener("change",e=>{if(e.target.id==="bc-aud"&&bcState){bcState.aud=e.target.value;bcState.email=!!($("#bc-email")&&$("#bc-email").checked);bcState.wa=!!($("#bc-wa")&&$("#bc-wa").checked);bcRender()}});
+document.addEventListener("change",e=>{if(e.target.id==="bc-aud"&&bcState){bcState.aud=e.target.value;bcRender()}});
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
   if(a==="bc-open")broadcastModal(b.dataset.k,b.dataset.a);
   else if(a==="bc-send")bcSend();

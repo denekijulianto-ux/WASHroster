@@ -19,10 +19,10 @@ const OUT = process.env.SHOTS || "/tmp";
     const res = !st ? [404, { error: "not_registered" }] : st.pw ? [409, { error: "password_required" }] : core(st.phone) !== core(b.phone) ? [401, { error: "phone_mismatch" }] : [200, { token_hash: "th:" + b.email }];
     r.fulfill({ status: res[0], contentType: "application/json", body: JSON.stringify(res[1]) });
   });
-  const sent = [];
+  const sent = []; let gmailOff = false;
   await p.route("**/functions/v1/broadcast", async r => {
     const b = JSON.parse(r.request().postData() || "{}");
-    if (b.mode === "status") return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ channels: { email: true, wa: false } }) });
+    if (b.mode === "status") return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ channels: { email: !gmailOff, wa: false } }) });
     sent.push(b);
     r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, recipients: 3, email_sent: 3, email_error: null, wa_sent: 0, wa_error: null, channels: { email: true, wa: false } }) });
   });
@@ -45,13 +45,21 @@ const OUT = process.env.SHOTS || "/tmp";
     if (!(await p.locator("text=WASH-").count())) throw new Error("alert code not visible");
   });
   await step("after creating, 'send alert to all members' opens; email sends, WA shown as not active", async () => {
-    await p.waitForSelector("text=Kirim alert ke anggota", { timeout: 4000 });
-    await p.waitForSelector("text=Belum aktif: isi rahasia FONNTE_TOKEN");
+    await p.waitForSelector("text=Kirim alert lewat email", { timeout: 4000 });
+    await p.waitForSelector("text=Pengiriman otomatis aktif");
     await p.click("[data-act=bc-send]"); await p.waitForSelector("text=3 email terkirim");
     if (sent[0].kind !== "alert" || sent[0].email !== true || sent[0].wa !== false) throw new Error(JSON.stringify(sent[0]));
     await p.click("#modal [data-act=close]");
   });
   await shot("03-broadcast");
+  await step("without Gmail secrets: 'Buka di Gmail' fallback with BCC prefilled", async () => {
+    gmailOff = true; await p.click(".tab:has-text('Alert Penugasan')"); await p.click("[data-act=sela]"); await p.click("[data-act=bc-open][data-k=alert]");
+    await p.waitForSelector("text=Kirim lewat Gmail Anda");
+    const href = await p.getAttribute("a:has-text('Buka di Gmail')", "href");
+    if (!/mail\.google\.com\/mail\/\?view=cm/.test(href) || !/bcc=/.test(href)) throw new Error(href);
+    await p.click("#modal [data-act=close]"); gmailOff = false;
+  });
+  await shot("03b-gmail");
   await step("admin deletes two members at once", async () => {
     await p.click(".tab:has-text('Anggota Roster')"); await p.waitForSelector("text=Hapus Satu");
     await p.check("tr:has-text('Hapus Satu') [data-act=rsel]"); await p.check("tr:has-text('Hapus Dua') [data-act=rsel]");
@@ -98,7 +106,7 @@ const OUT = process.env.SHOTS || "/tmp";
     await p.waitForSelector("text=Kartu ID penugasan"); await p.click("#modal [data-act=close]");
     await p.click(".tab:has-text('Seleksi Kandidat')"); await p.waitForTimeout(400);
     await p.fill("#annnote", "Briefing di Markas PMI Jateng pukul 08.00."); await p.click("[data-act=announce]"); await p.waitForTimeout(600);
-    await p.waitForSelector("text=Kirim pengumuman hasil seleksi", { timeout: 4000 });
+    await p.waitForSelector("text=Kirim pengumuman lewat email", { timeout: 4000 });
     await p.click("[data-act=bc-send]"); await p.waitForSelector("text=3 email terkirim");
     if (sent[sent.length - 1].kind !== "announce") throw new Error("announce not sent");
     await p.click("#modal [data-act=close]");
